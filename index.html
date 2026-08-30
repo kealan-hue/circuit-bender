@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0d0e10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="MANGLER VS-1 — a hand-bent video signal processor. Live camera in, corrupted signal out.">
+<title>MANGLER VS-1</title>
+<link rel="stylesheet" href="assets/css/panel.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div class="device">
+
+  <!-- ══ head ══ -->
+  <header class="head">
+    <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+    <div class="head__mark" id="brandmark"></div>
+    <div class="head__id">
+      <b class="head__name">MANGLER</b>
+      <span class="head__sub">VIDEO SIGNAL PROCESSOR &nbsp;·&nbsp; VS-1</span>
+    </div>
+    <div class="head__plate">
+      <span>SER.</span><b id="serial">——</b>
+      <span>FPS</span><b id="fps">00</b>
+    </div>
+  </header>
+  <div class="etch" id="rule-a"></div>
+
+  <div class="top">
+
+  <!-- ══ screen ══ -->
+  <section class="screen">
+    <div class="screen__bezel">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <i class="screw screw--bl"></i><i class="screw screw--br"></i>
+      <div class="tube">
+        <canvas id="glass"></canvas>
+        <div class="tube__glare"></div>
+        <div class="flash" id="flash"></div>
+        <button class="start" id="start" type="button">
+          <b>TOUCH TO OPEN SENSOR</b>
+          <em>camera access is required · nothing leaves this device</em>
+        </button>
+      </div>
+      <div class="strip">
+        <div class="crt" id="crt">STANDBY</div>
+        <div class="meters" id="meters"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ transport ══ -->
+  <section class="transport">
+    <button class="big" id="b-bend" type="button">
+      <span class="big__ring"></span>
+      <b>BEND</b><em>hold</em>
+    </button>
+
+    <div class="transport__grid">
+      <button class="pb pb--amber" id="b-scram" type="button"><b>SCRAMBLE</b><em>R</em></button>
+      <button class="pb" id="b-hold"  type="button"><b>HOLD</b><em>F</em></button>
+      <button class="pb pb--red" id="b-kill"  type="button"><b>KILL</b><em>X</em></button>
+      <button class="pb" id="b-shot"  type="button"><b>FRAME</b><em>C</em></button>
+      <button class="pb pb--rec" id="b-rec" type="button"><b>REC</b><em>V</em></button>
+      <button class="pb" id="b-cam"   type="button"><b>SENSOR</b><em>flip</em></button>
+      <button class="pb" id="b-qual"  type="button"><b>MID</b><em>res</em></button>
+    </div>
+  </section>
+
+  <!-- ══ patch bay ══ -->
+  <section class="bay">
+    <div class="bay__lab">PATCH<br>BAY</div>
+    <div class="bay__jacks" id="patchbay"></div>
+    <div class="bay__hint">arm a source, then touch any knob to route it there</div>
+  </section>
+
+  </div><!-- /.top -->
+
+  <div class="etch" id="rule-b"></div>
+
+  <!-- ══ rack ══ -->
+  <main class="rack" id="rack"></main>
+
+  <footer class="foot">
+    <i class="screw screw--bl"></i><i class="screw screw--br"></i>
+    <span>MANGLER VS-1 · NO SIGNAL LEAVES THIS DEVICE · <b id="foot-ser"></b></span>
+    <span class="foot__keys">SPACE bend · R scramble · F hold · C frame · V tape · X kill
+      &nbsp;|&nbsp; shift-drag = fine · double-click = default · tap a number to type one</span>
+  </footer>
+</div>
+
+<script src="assets/js/sigil.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/app.js"></script>
+<script>document.getElementById('foot-ser').textContent = localStorage.getItem('mangler.serial')||'';</script>
+</body>
+</html>
