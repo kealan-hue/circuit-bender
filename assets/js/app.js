@@ -31,19 +31,19 @@ const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
    fringe. Geometry-destroying stages (sort, mosh, warp, slit, fold) start at
    zero; they are where you go, not where you start. */
 const V = {
-  gain:0.5, bias:0.62, mix:1,
+  gain:0.5, bias:0.5, route:0.30, sat:0.55, con:0.30, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
-  tear:0.10, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
+  tear:0.05, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   addr:0, clock:0, bitSwap:0, bus:0, starve:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
-  post:0.34, dither:0.42, half:0, scan:0.30, noise:0.06, inv:0
+  post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
 };
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
-  bias:0.5, tear:0, post:0, dither:0, scan:0, noise:0
+  bias:0.5, route:0, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0
 });
 const DEF = NEUTRAL;
 
@@ -59,7 +59,7 @@ const STAGE = {
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   sort:   ['sort'],
-  out:    ['post','dither','half','scan','noise']
+  out:    ['post','dither','half','scan','noise','sat','con','route']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
 
@@ -340,6 +340,9 @@ const RACK = [
   { id:'src', name:'SOURCE', fixed:true, ctl:[
     K('gain','GAIN',   { def:0.5, detent:[0.5] }),
     K('bias','TINT',   { def:0.5, detent:[0.5] }),
+    K('route','ROUTE', { def:0 }),
+    K('sat','COLOUR',  { def:0 }),
+    K('con','CONTRAST',{ def:0 }),
     F('mix','DRY / WET',{ def:1,  detent:[0,1] })
   ]},
   { id:'time', name:'TIME BASE', note:'per-pixel delay', ctl:[

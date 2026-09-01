@@ -532,7 +532,7 @@ const FS_POST = HEAD + `
 uniform sampler2D uTex, uRaw;
 uniform vec2  uRes;
 uniform float uTime, uBend;
-uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias;
+uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias, uSat, uCon, uRoute;
 uniform int   uInv;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
@@ -559,16 +559,48 @@ void main(){
   ivec2 fp = ivec2(gl_FragCoord.xy);
   float bd = bayer(fp) - 0.5;
 
-  /* ── QUANT — punch the saturation up hard FIRST, then crush the levels.
-        oversaturated colour blocked into hard bands is the loud, graphic
-        "broken CCD" look; posterizing alone just looks like a filter. the
-        Bayer offset turns the flat banding into structured dither, and the
-        grid is fixed in SCREEN space while REGEN rotates the picture through
-        it, so it slides on itself. ── */
-  if(uPost > 0.002){
-    float sat = 1.0 + 7.0 * uPost;
+  /* ── ROUTE — walk the colour channels around onto each other's wires.
+        A hue rotation moves every colour by the same angle, so the original
+        relationships survive and you get one tint laid over everything. This
+        BREAKS the relationships: red's data arrives on blue's line, and a
+        photograph resolves into two far-apart hues — teal against magenta,
+        yellow against purple. It is also literally what shorting two data
+        lines does, so the look and the mechanism are the same thing. ── */
+  if(uRoute > 0.002){
+    vec3 r1 = vec3(col.b, col.r, col.g);
+    vec3 r2 = vec3(col.g, col.b, col.r);
+    float k = clamp(uRoute, 0.0, 1.0) * 3.0;
+    col = k < 1.0 ? mix(col, r1, k)
+        : k < 2.0 ? mix(r1, r2, k - 1.0)
+                  : mix(r2, col, k - 2.0);
+  }
+
+  /* ── SAT — its own control, deliberately NOT tied to the quantiser.
+        Vivid colour over smooth gradients is the whole look; welding
+        saturation to level-crushing forces banding you did not ask for.
+        Luminance is preserved so the subject stays readable. ── */
+  if(uSat > 0.002){
     float grey = dot(col, vec3(0.299,0.587,0.114));
-    col = clamp(grey + (col - grey) * sat, 0.0, 1.0);
+    vec3 wide = grey + (col - grey) * (1.0 + uSat * 2.4);
+    /* scale the whole triple back inside gamut instead of clipping each
+       channel separately — clipping is what turns a colour neon and flat */
+    float over = max(max(wide.r, wide.g), max(wide.b, 1.0));
+    float under = min(min(wide.r, wide.g), min(wide.b, 0.0));
+    wide = (wide - under) / (over - under);
+    col = clamp(mix(col, wide, 0.85), 0.0, 1.0);
+  }
+
+  /* ── CONTRAST — the reference has deep saturated darks against bright
+        highlights. Saturation alone reads milky without it. ── */
+  if(uCon > 0.002){
+    /* smoothstep is an S-curve: it steepens the midtones and ROLLS OFF at
+       both ends, so highlights keep detail instead of clipping to white */
+    vec3 sc = smoothstep(0.0, 1.0, clamp(col, 0.0, 1.0));
+    col = mix(col, sc, uCon);
+  }
+
+  /* ── QUANT — level crushing only, now that saturation lives elsewhere ── */
+  if(uPost > 0.002){
     float L = mix(22.0, 2.0, uPost);
     vec3 lv = vec3(L, max(2.0, L - uPost*2.0), max(2.0, L + uPost*1.5));
     col = floor(col*lv + 0.5 + bd*uDither*1.6) / lv;
@@ -596,18 +628,20 @@ void main(){
 
   if(uScan > 0.002){
     float sl = 0.5 + 0.5*sin(cl.y*uRes.y*3.14159);
-    col *= 1.0 - uScan*0.78*sl;
+    col *= 1.0 - uScan*0.42*sl;
+    /* the vertical RGB stripe is a CRT aperture grille — it belongs to a
+       display, not to a bent signal, so it only arrives at high settings */
     float m = mod(floor(cl.x*uRes.x), 3.0);
     vec3 mask = vec3(m<1.0?1.12:0.94, (m>=1.0&&m<2.0)?1.12:0.94, m>=2.0?1.12:0.94);
-    col *= mix(vec3(1.0), mask, uScan*0.55);
+    col *= mix(vec3(1.0), mask, max(0.0, uScan-0.55)*0.9);
     float hum = smoothstep(0.0, 0.14, abs(fract(cl.y - uTime*0.09) - 0.5) - 0.36);
     col += hum * uScan * 0.09;
   }
 
   if(uNoise > 0.002){
     float n = hash(cl*uRes + uTime*77.0);
-    col += (n - 0.5) * uNoise * 0.55;
-    float drop = step(1.0 - uNoise*0.05*(1.0+uBend*1.2), hash(cl*uRes*1.7 - uTime*133.0));
+    col += (n - 0.5) * uNoise * 0.28;
+    float drop = step(1.0 - uNoise*0.03*(1.0+uBend*1.2), hash(cl*uRes*1.7 - uTime*133.0));
     col = mix(col, vec3(step(0.5, n)), drop);
 
     /* ── rare bright horizontal dropout bars — tracking-error colour, not
@@ -912,6 +946,9 @@ function Engine(canvas){
       gl.uniform1f(q.uScan, p.scan);
       gl.uniform1f(q.uPost, p.post);
       gl.uniform1f(q.uDither, p.dither);
+      gl.uniform1f(q.uSat, p.sat);
+      gl.uniform1f(q.uCon, p.con);
+      gl.uniform1f(q.uRoute, p.route);
       gl.uniform1f(q.uHalf, p.half);
       gl.uniform1f(q.uNoise, p.noise);
       gl.uniform1f(q.uMix, p.mix);
