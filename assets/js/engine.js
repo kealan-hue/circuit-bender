@@ -87,6 +87,10 @@ uniform float uDelay, uDelayMix;
 uniform float uMosh;
 uniform float uFeed, uOrbit, uDroste;
 uniform float uAddr, uClock;
+uniform float uTile, uTileSpeed, uTileAngle;
+uniform float uSplit, uSplitCount, uSplitAngle;
+uniform float uStretch, uStretchWave, uStretchJag;
+uniform float uW3d, uW3dPitch, uW3dYaw, uW3dRoll;
 
 vec3 ringAt(vec2 uv, float back){
   float s = mod(uHead - back + uRingN*4.0, uRingN);
@@ -111,6 +115,82 @@ void main(){
     float seg = TAU / N;
     a = abs(mod(a, seg) - seg*0.5) + t*0.05*uKal;
     uv = 0.5 + vec2(cos(a), sin(a)) * r;
+  }
+
+  /* ── TILE — sliding mirrored tiling ── */
+  if(uTile > 0.002){
+    vec2 p = uv - 0.5;
+    float a = uTileAngle * TAU;
+    mat2 R = mat2(cos(a), -sin(a), sin(a), cos(a));
+    p = R * p;
+    float cells = 1.0 + floor(uTile * 7.0);
+    p = p * cells + vec2(t * uTileSpeed * 0.35, t * uTileSpeed * 0.22);
+    uv = 1.0 - abs(fract(p * 0.5 + 0.25) * 2.0 - 1.0);
+  }
+
+  /* ── SPLITTER — offset strips ── */
+  if(uSplit > 0.002){
+    vec2 p = uv - 0.5;
+    float a = uSplitAngle * TAU;
+    float ca = cos(a), sa = sin(a);
+    mat2 R = mat2(ca, -sa, sa, ca);
+    mat2 invR = mat2(ca, sa, -sa, ca);
+    p = R * p;
+    float count = 2.0 + floor(uSplitCount * 28.0);
+    float stripIdx = floor((p.y + 100.0) * count);
+    float h = hash(vec2(stripIdx, 37.17)) - 0.5;
+    p.x += h * uSplit * 0.6;
+    p = invR * p;
+    uv = p + 0.5;
+  }
+
+  /* ── STRETCH — stretch a region with wave and jaggies ── */
+  if(uStretch > 0.002){
+    vec2 p = uv - 0.5;
+    float r = length(p);
+    float region = smoothstep(0.7, 0.0, r);
+    p *= 1.0 + uStretch * region * 1.4;
+    if(uStretchWave > 0.002){
+      p.x += sin(p.y * 20.0 + t * 2.5) * uStretchWave * 0.08;
+    }
+    if(uStretchJag > 0.002){
+      float rows = 16.0 + floor(uStretchJag * 48.0);
+      float jag = (hash(vec2(floor((p.y + 100.0) * rows), 59.3)) - 0.5) * uStretchJag * 0.10;
+      p.x += jag;
+    }
+    uv = p + 0.5;
+  }
+
+  /* ── WARP3D — 3D perspective plane ── */
+  if(uW3d > 0.002){
+    float pitch = (uW3dPitch - 0.5) * PI * 1.2 * uW3d;
+    float yaw   = (uW3dYaw   - 0.5) * PI * 1.2 * uW3d;
+    float rollAngle = (uW3dRoll - 0.5) * PI * 1.2 * uW3d;
+
+    mat3 Rx = mat3(1.0, 0.0, 0.0,
+                   0.0, cos(pitch), sin(pitch),
+                   0.0, -sin(pitch), cos(pitch));
+    mat3 Ry = mat3(cos(yaw), 0.0, -sin(yaw),
+                   0.0, 1.0, 0.0,
+                   sin(yaw), 0.0, cos(yaw));
+    mat3 Rz = mat3(cos(rollAngle), sin(rollAngle), 0.0,
+                   -sin(rollAngle), cos(rollAngle), 0.0,
+                   0.0, 0.0, 1.0);
+    mat3 R3 = Rz * Ry * Rx;
+
+    vec3 ro = R3 * vec3(0.0, 0.0, -1.0);
+    vec3 rd = R3 * normalize(vec3(uv - 0.5, 1.0));
+
+    if(abs(rd.z) > 1e-5){
+      float tHit = -ro.z / rd.z;
+      if(tHit > 0.0){
+        vec3 hit = ro + tHit * rd;
+        vec2 hitUv = hit.xy + 0.5;
+        if(hitUv.x >= 0.0 && hitUv.x <= 1.0 && hitUv.y >= 0.0 && hitUv.y <= 1.0){
+          uv = hitUv;
+        }
+      }
+    }
   }
 
   /* ── WARP — displacement driven by the picture's own luma gradient ── */
@@ -918,6 +998,19 @@ function Engine(canvas){
       gl.uniform1f(m.uDroste, p.droste);
       gl.uniform1f(m.uAddr, p.addr);
       gl.uniform1f(m.uClock, p.clock);
+      gl.uniform1f(m.uTile, p.tile);
+      gl.uniform1f(m.uTileSpeed, p.tileSpeed);
+      gl.uniform1f(m.uTileAngle, p.tileAngle);
+      gl.uniform1f(m.uSplit, p.split);
+      gl.uniform1f(m.uSplitCount, p.splitCount);
+      gl.uniform1f(m.uSplitAngle, p.splitAngle);
+      gl.uniform1f(m.uStretch, p.stretch);
+      gl.uniform1f(m.uStretchWave, p.stretchWave);
+      gl.uniform1f(m.uStretchJag, p.stretchJag);
+      gl.uniform1f(m.uW3d, p.w3d);
+      gl.uniform1f(m.uW3dPitch, p.w3dPitch);
+      gl.uniform1f(m.uW3dYaw, p.w3dYaw);
+      gl.uniform1f(m.uW3dRoll, p.w3dRoll);
       draw(work);
 
       /* ── SIGNAL ── */

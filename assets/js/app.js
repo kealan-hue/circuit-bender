@@ -37,13 +37,21 @@ const V = {
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   addr:0, clock:0, bitSwap:0, bus:0, starve:0,
+  tile:0, tileSpeed:0.5, tileAngle:0,
+  split:0, splitCount:0.4, splitAngle:0,
+  stretch:0, stretchWave:0, stretchJag:0,
+  w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
 };
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
-  bias:0.5, route:0, duo:0, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0
+  bias:0.5, route:0, duo:0, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0,
+  tile:0, tileSpeed:0.5, tileAngle:0,
+  split:0, splitCount:0.4, splitAngle:0,
+  stretch:0, stretchWave:0, stretchJag:0,
+  w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5
 });
 const DEF = NEUTRAL;
 
@@ -58,6 +66,7 @@ const STAGE = {
   comp:   ['ntsc','ghost'],
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
+  geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll'],
   sort:   ['sort'],
   out:    ['post','dither','half','scan','noise','sat','con','route','duo']
 };
@@ -451,6 +460,21 @@ const RACK = [
     K('addr','ADDRESS',  { def:0 }),
     K('clock','CLOCK',   { def:0 }),
     K('starve','STARVE', { def:0 })
+  ]},
+  { id:'geom', name:'GEOMETRY', note:'space rearranged', wide:true, ctl:[
+    K('tile',       'TILE',    { def:0 }),
+    K('tileSpeed',  'T SPEED', { def:0.5 }),
+    K('tileAngle',  'T ANGLE', { def:0 }),
+    K('split',      'SPLIT',   { def:0 }),
+    K('splitCount', 'STRIPS',  { def:0.4 }),
+    K('splitAngle', 'S ANGLE', { def:0 }),
+    K('stretch',    'STRETCH', { def:0 }),
+    K('stretchWave','WAVE',    { def:0 }),
+    K('stretchJag', 'JAG',     { def:0 }),
+    K('w3d',        'WARP 3D', { def:0 }),
+    K('w3dPitch',   'PITCH',   { def:0.5, detent:[0.5] }),
+    K('w3dYaw',     'YAW',     { def:0.5, detent:[0.5] }),
+    K('w3dRoll',    'ROLL',    { def:0.5, detent:[0.5] })
   ]},
   { id:'sort', name:'SORT', note:'span, not threshold', wide:true, ctl:[
     F('sort','PASSES',  { def:0 }),
@@ -1046,6 +1070,7 @@ function selftest(passes){
   for(const k in STAGE) ON[k] = true;
   Object.assign(V, {
     slit:.7, ctime:.5, echo:.5, delayMix:.5, tear:.6, warp:.6, kal:.4,
+    tile:.5, split:.5, stretch:.5, w3d:.5,
     rutt:.5, mosh:.6, feed:.5, droste:.4, headsw:.5, wave:.5, chromaLoss:.4,
     ntsc:.8, ghost:.4, smear:.5, bitAmt:.5, sort:.7, post:.5, dither:.6,
     half:.4, scan:.4, noise:.3
