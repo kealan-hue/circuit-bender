@@ -95,21 +95,26 @@ const SOURCES = {
    labelled by the two pins it shorts, so the front door and the chip behind
    the swipe speak one language and using one teaches the other.
    No descriptions anywhere. You find out by pointing it at your own face. */
+/* DEVICE VOICE — scanline, fringe, dither, hiss. Formerly forced under every
+   bend at fixed strength, which made twelve bends converge on one texture and
+   buried the detail that distinguishes them. Kept as a capability, no longer
+   compulsory: these are ordinary controls, and a bend may name its own amount
+   when that texture IS part of its character. Applied nowhere by default. */
 const VOICE = { scan:0.42, con:0.26, sat:0.42, tear:0.05, dither:0.14, noise:0.04,
                 duo:0.62, axis:0.34 };
 const BENDS = [
-  { a:'BITS',  b:'COLOR', p:{ axis:0.34, bitSwap:0.14 } },
-  { a:'CLOCK', b:'TIME',  p:{ axis:0.50, clock:0.34, slit:0.22, slitMode:1 } },
-  { a:'BITS',  b:'BUS',   p:{ axis:0.08, bitSwap:0.22, bus:0.14 } },
-  { a:'POWER', b:'LOOP',  p:{ axis:0.72, starve:0.40, feed:0.28, orbit:0.56 } },
-  { a:'ADDR',  b:'TIME',  p:{ axis:0.25, addr:0.30, slit:0.26, slitMode:3 } },
-  { a:'BUS',   b:'COLOR', p:{ axis:0.58, bus:0.22 } },
-  { a:'ADDR',  b:'CLOCK', p:{ axis:0.00, addr:0.32, clock:0.32 } },
-  { a:'BITS',  b:'TIME',  p:{ axis:0.42, bitSwap:0.26, ctime:0.30 } },
-  { a:'POWER', b:'COLOR', p:{ axis:0.83, starve:0.34, sat:0.30, con:0.20 } },
-  { a:'BUS',   b:'LOOP',  p:{ axis:0.17, bus:0.16, feed:0.30, droste:0.18 } },
-  { a:'CLOCK', b:'POWER', p:{ axis:0.92, clock:0.34, starve:0.44, headsw:0.30, wave:0.26 } },
-  { a:'ADDR',  b:'LOOP',  p:{ axis:0.66, addr:0.26, feed:0.30, orbit:0.42, mosh:0.22 } }
+  { a:'BITS',  b:'COLOR', p:{ axis:0.34, bitSwap:0.38, duo:0.35, dither:0.14 } },
+  { a:'CLOCK', b:'TIME',  p:{ axis:0.50, slit:0.44, slitMode:1, clock:0.20, wave:0.16 } },
+  { a:'BITS',  b:'BUS',   p:{ axis:0.08, bus:0.42, dither:0.28, post:0.22 } },
+  { a:'POWER', b:'LOOP',  p:{ axis:0.72, feed:0.42, orbit:0.58, con:0.36 } },
+  { a:'ADDR',  b:'TIME',  p:{ axis:0.25, delayMix:0.48, delay:0.40, addr:0.22, ctime:0.20 } },
+  { a:'BUS',   b:'COLOR', p:{ axis:0.58, route:0.65, con:0.38, bus:0.18, dither:0.12 } },
+  { a:'ADDR',  b:'CLOCK', p:{ axis:0.00, addr:0.44, clock:0.22, tear:0.08 } },
+  { a:'BITS',  b:'TIME',  p:{ axis:0.42, echo:0.48, ctime:0.30, bitSwap:0.14 } },
+  { a:'POWER', b:'COLOR', p:{ axis:0.83, starve:0.36, sat:0.42, con:0.28, noise:0.06 } },
+  { a:'BUS',   b:'LOOP',  p:{ axis:0.17, droste:0.46, feed:0.28, bus:0.16 } },
+  { a:'CLOCK', b:'POWER', p:{ axis:0.92, clock:0.50, headsw:0.45, wave:0.35, con:0.24 } },
+  { a:'ADDR',  b:'LOOP',  p:{ axis:0.66, mosh:0.52, addr:0.20, delayMix:0.20, con:0.28 } }
 ];
 
 const PATCH = {};                      /* param → { src, depth } */
@@ -290,7 +295,7 @@ function sizeTo(vw, vh){
 function applyBend(i, silent){
   state.pick = ((i % BENDS.length) + BENDS.length) % BENDS.length;
   const b = BENDS[state.pick];
-  Object.assign(V, NEUTRAL, VOICE, b.p);
+  Object.assign(V, NEUTRAL, b.p);
   for(const s in STAGE) ON[s] = true;
   WIRES.length = 0;
   WIRES.push({ a: PINS.findIndex(p => p.name === b.a),
