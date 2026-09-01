@@ -706,6 +706,37 @@ body.is-patching .knob, body.is-patching .fader{ box-shadow:0 0 0 1px rgba(255,2
   box-shadow:0 2px 8px rgba(0,0,0,.7);
 }
 .ctl.is-target .knob__ring,
-.ctl.is-target .fader__body{
+.ctl.is-target .fader{
   box-shadow:0 0 0 2px #4fc8ff, 0 0 12px rgba(79,200,255,.8);
+}
+
+
+/* ── thumbs, not cursors ─────────────────────────────────────────────
+   Every one of these was under the 44px a fingertip actually needs. The
+   visible part keeps its size; an invisible pad carries the hit area. */
+.pin{ position:relative; }
+.pin::after{
+  content:''; position:absolute; top:50%; left:50%;
+  width:46px; height:38px; transform:translate(-50%,-50%);
+}
+.jack{ position:relative; }
+.jack::after{
+  content:''; position:absolute; top:50%; left:50%;
+  width:46px; height:46px; transform:translate(-50%,-50%);
+}
+.rock__sw{ position:relative; }
+.rock__sw::after{
+  content:''; position:absolute; top:50%; left:50%;
+  width:46px; height:44px; transform:translate(-50%,-50%);
+}
+/* a 2px wire is impossible to hit; widen the strike without redrawing it */
+.chip__wires path{ stroke-width:2.1; }
+.chip__wires path.hit{ stroke:transparent; stroke-width:22; filter:none; }
+
+@media (max-width:720px){
+  /* 5.5px type is unreadable on glass */
+  .pin__name{ font-size:9px; }
+  .slide__mark{ font-size:7.5px; }
+  .bay__hint, .wire__head em, .wire__read{ font-size:9px; }
+  .ctl__label{ font-size:8.5px; }
 }

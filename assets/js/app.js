@@ -36,10 +36,16 @@ const V = {
   tear:0.10, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
+  addr:0, clock:0, bitSwap:0, bus:0, starve:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   post:0.34, dither:0.42, half:0, scan:0.30, noise:0.06, inv:0
 };
-const DEF = Object.assign({}, V);
+/* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
+   a lie. The resting look is applied once at boot and is not what KILL means. */
+const NEUTRAL = Object.assign({}, V, {
+  bias:0.5, tear:0, post:0, dither:0, scan:0, noise:0
+});
+const DEF = NEUTRAL;
 
 /* stage → the params it owns. the rocker zeroes them without losing them */
 const STAGE = {
@@ -51,6 +57,7 @@ const STAGE = {
   tape:   ['headsw','wave','chromaLoss'],
   comp:   ['ntsc','ghost'],
   sensor: ['smear','bitAmt'],
+  bend:   ['addr','clock','bitSwap','bus','starve'],
   sort:   ['sort'],
   out:    ['post','dither','half','scan','noise']
 };
@@ -75,14 +82,14 @@ let armed = null;
       overrides a switch instead of obeying it — which is what bending is.
       8 pins = 28 possible bridges, and each pair has its own character. ── */
 const PINS = [
-  { side:'l', name:'SUB', long:'substrate bias',   p:'gain',   k:0.92, was:'exposure' },
-  { side:'l', name:'RG',  long:'reset gate',       p:'post',   k:0.80, was:'saturation & banding' },
-  { side:'l', name:'OD',  long:'output drain',     p:'tear',   k:0.85, was:'R/G/B separation' },
-  { side:'l', name:'HCK', long:'horizontal clock', p:'headsw', k:0.72, was:'line timing' },
-  { side:'r', name:'TG',  long:'transfer gate',    p:'bias',   k:0.88, was:'hue & phase' },
-  { side:'r', name:'AB',  long:'anti-bloom drain', p:'smear',  k:0.78, was:'bloom & colour kill' },
-  { side:'r', name:'VCK', long:'vertical clock',   p:'slit',   k:0.70, was:'frame timing' },
-  { side:'r', name:'VRF', long:'voltage ref',      p:'feed',   k:0.58, was:'feedback' }
+  { side:'l', name:'BITS',  long:'data lines',   p:'bitSwap', k:0.80, was:'impossible colour' },
+  { side:'l', name:'BUS',   long:'shared wire',  p:'bus',     k:0.75, was:'signals fight' },
+  { side:'l', name:'ADDR',  long:'address bus',  p:'addr',    k:0.70, was:'wrong pixel fetched' },
+  { side:'l', name:'CLOCK', long:'row clock',    p:'clock',   k:0.68, was:'rows misread' },
+  { side:'r', name:'POWER', long:'supply rail',  p:'starve',  k:0.72, was:'chip half-fails' },
+  { side:'r', name:'COLOR', long:'chroma path',  p:'bias',    k:0.88, was:'hue swings' },
+  { side:'r', name:'TIME',  long:'frame store',  p:'slit',    k:0.70, was:'pixels from the past' },
+  { side:'r', name:'LOOP',  long:'output feed',  p:'feed',    k:0.58, was:'image eats itself' }
 ];
 PINS.forEach((pin, i) => pin.id = i);
 const WIRES = [];                      /* [{a,b}] — pin index pairs */
@@ -101,6 +108,14 @@ const canvas = $('#glass');
 let engine;
 try { engine = new Engine(canvas); }
 catch(err){ fail(err); return; }
+
+/* a lost GPU context silently freezes the picture; say so instead */
+canvas.addEventListener('webglcontextlost', e => {
+  e.preventDefault();
+  document.body.classList.add('is-fault');
+  crt('GPU CONTEXT LOST — RELOAD');
+}, false);
+canvas.addEventListener('webglcontextrestored', () => location.reload(), false);
 
 function fail(err){
   const s = $('#crt');
@@ -153,11 +168,15 @@ const bench = (() => {
   return c;
 })();
 
+let opening = false;
 async function openCamera(facing){
-  if(stream) stream.getTracks().forEach(t => t.stop());
+  if(opening) return;                       /* a second tap mid-open killed the stream */
+  opening = true;
+  const old = stream;
   ready = false;
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    source = bench; ready = true; dropStart(); sizeTo(bench.width, bench.height);
+    source = bench; ready = true; dropStart(); opening = false;
+    sizeTo(bench.width, bench.height);
     crt('NO SENSOR API — BENCH PATTERN'); return;
   }
   crt('OPENING ' + (facing === 'user' ? 'FRONT' : 'REAR') + ' SENSOR');
@@ -173,15 +192,20 @@ async function openCamera(facing){
   } catch(e){
     try { stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio:false, video:true })); }
     catch(e2){
-      source = bench; ready = true; dropStart();
+      source = bench; ready = true; dropStart(); opening = false;
       sizeTo(bench.width, bench.height);
       crt('NO SENSOR — BENCH PATTERN (' + e2.name + ')');
       return;
     }
   }
+  if(old) old.getTracks().forEach(t => t.stop());   /* only now is it safe */
   video.srcObject = stream;
   await video.play().catch(()=>{});
-  state.facing = facing;
+  /* the fallback branch may have handed back the other camera entirely, and
+     mirroring the preview off the REQUESTED facing would then be wrong */
+  const st = stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings
+           ? stream.getVideoTracks()[0].getSettings() : {};
+  state.facing = st.facingMode || facing;
   await new Promise(r => {
     if(video.videoWidth) return r();
     video.onloadedmetadata = r;
@@ -189,6 +213,7 @@ async function openCamera(facing){
   sizeTo(video.videoWidth, video.videoHeight);
   source = video; ready = true; dropStart();
   crt('SIGNAL LOCK  ' + video.videoWidth + '×' + video.videoHeight);
+  opening = false;
 }
 
 let quality = 1;                                  /* 0 lo · 1 mid · 2 hi */
@@ -211,8 +236,7 @@ function build(t){
     const pt = PATCH[k];
     const src = SOURCES[pt.src];
     if(!src) continue;
-    const base = DEF[k] === 0.5 ? P[k] : P[k];
-    P[k] = clamp(base + src.fn(t) * pt.depth * 0.5, 0, 1);
+    P[k] = clamp(P[k] + src.fn(t) * pt.depth * 0.5, 0, 1);
   }
 
   /* ── BRIDGES — applied after gating, because shorting two pins is exactly
@@ -357,6 +381,15 @@ const RACK = [
   { id:'sensor', name:'SENSOR', ctl:[
     K('smear','SMEAR', { def:0 }),
     K('bitAmt','BITS', { def:0 })
+  ]},
+  /* the only stages here that corrupt the MACHINE rather than simulate a
+     machine working normally on damaged media */
+  { id:'bend', name:'BENDS', note:'real shorts', wide:true, ctl:[
+    K('bitSwap','BIT SWAP',{ def:0 }),
+    K('bus','BUS SHORT', { def:0 }),
+    K('addr','ADDRESS',  { def:0 }),
+    K('clock','CLOCK',   { def:0 }),
+    K('starve','STARVE', { def:0 })
   ]},
   { id:'sort', name:'SORT', note:'span, not threshold', wide:true, ctl:[
     F('sort','PASSES',  { def:0 }),
@@ -744,7 +777,7 @@ function stamp(){
 function save(blob, ext){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'mangler-' + stamp() + '.' + ext;
+  a.download = 'circuit-bender-' + stamp() + '.' + ext;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 20000);
 }
@@ -755,31 +788,46 @@ function flash(){
   const f = $('#flash');
   f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
 }
-let rec = null, recT = 0, recTimer = 0;
+let rec = null, recT = 0, recTimer = 0, recCap = 0;
+/* chunks live in RAM until you stop. A forgotten recording fills a phone and
+   the tab is killed by the OS with nothing saved, so cap it and say so. */
+const REC_MAX_S = 20;
 function toggleRec(){
   const btn = $('#b-rec');
   if(rec){ rec.stop(); return; }
+  if(!window.MediaRecorder || !canvas.captureStream){ crt('NO RECORDER ON THIS BROWSER'); return; }
   let mime = ['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm']
-    .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+    .find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } });
   if(!mime){ crt('NO RECORDER'); return; }
   const chunks = [];
-  rec = new MediaRecorder(canvas.captureStream(30), { mimeType:mime, videoBitsPerSecond: 9e6 });
+  try {
+    rec = new MediaRecorder(canvas.captureStream(30), { mimeType:mime, videoBitsPerSecond: 9e6 });
+  } catch(e){
+    /* isTypeSupported can pass and construction still fail under memory
+       pressure on iOS — take whatever the browser will give us */
+    try { rec = new MediaRecorder(canvas.captureStream(30)); mime = rec.mimeType || 'video/webm'; }
+    catch(e2){ rec = null; crt('RECORDER REFUSED — ' + e2.name); return; }
+  }
   rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onerror = () => { crt('RECORDER FAULT'); try { rec.stop(); } catch(e){} };
   rec.onstop = () => {
-    clearInterval(recTimer);
-    save(new Blob(chunks, { type:mime }), mime.startsWith('video/mp4') ? 'mp4' : 'webm');
+    clearInterval(recTimer); clearTimeout(recCap);
+    save(new Blob(chunks, { type:mime }), mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm');
+    chunks.length = 0;
     rec = null; btn.classList.remove('on'); btn.querySelector('b').textContent = 'REC';
     crt('TAPE WRITTEN');
   };
   rec.start(120);
   recT = performance.now();
   btn.classList.add('on');
+  recCap = setTimeout(() => { if(rec && rec.state === 'recording'){ crt('TAPE FULL'); rec.stop(); } },
+                      REC_MAX_S * 1000);
   recTimer = setInterval(() => {
     const s = (performance.now()-recT)/1000;
     btn.querySelector('b').textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' +
                                          String(Math.floor(s%60)).padStart(2,'0');
   }, 200);
-  crt('TAPE RUNNING');
+  crt('TAPE RUNNING — MAX ' + REC_MAX_S + 's');
 }
 
 /* ══ wiring ════════════════════════════════════════════════ */
@@ -790,7 +838,7 @@ function wire(){
   bend.addEventListener('pointerdown', e => { e.preventDefault(); down(); });
   ['pointerup','pointercancel','pointerleave'].forEach(ev => bend.addEventListener(ev, up));
 
-  $('#b-scram').addEventListener('click', e => scramble(!e.shiftKey));
+  $('#b-scram').addEventListener('click', e => scramble(true));
   $('#b-kill').addEventListener('click', resetAll);
   $('#b-shot').addEventListener('click', shot);
   $('#b-rec').addEventListener('click', toggleRec);

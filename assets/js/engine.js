@@ -84,6 +84,7 @@ uniform float uKal, uRutt, uRuttLines;
 uniform float uDelay, uDelayMix;
 uniform float uMosh;
 uniform float uFeed, uOrbit, uDroste;
+uniform float uAddr, uClock;
 
 vec3 ringAt(vec2 uv, float back){
   float s = mod(uHead - back + uRingN*4.0, uRingN);
@@ -155,6 +156,35 @@ void main(){
     float amt  = base * (1.0 + 0.8*rowJ) * (1.0 + B*1.6);
     splitR = vec2(-amt, 0.0);
     splitB = vec2( amt, 0.0);
+  }
+
+  /* ══ REAL BENDS ═══════════════════════════════════════════════════════
+     Everything else in this file simulates a machine working normally on
+     damaged media. These four corrupt the machine itself. ── */
+
+  /* ── ADDRESS — the chip fetches each pixel from a memory address. Corrupt
+        the address and it fetches the WRONG pixel: chunks appear elsewhere,
+        tiles repeat. Not a smear — a wrong lookup. XOR on the integer
+        coordinate is literally what a shorted address line does. ── */
+  if(uAddr > 0.002){
+    ivec2 ip = ivec2(wuv * uRes);
+    int bit  = 1 << int(2.0 + floor(uAddr * 6.0));
+    ip.x = ip.x ^ bit;
+    ip.y = ip.y ^ (bit >> 2);
+    wuv = mix(wuv, (vec2(ip) + 0.5) / uRes, step(0.35, uAddr) * 0.5 + 0.5);
+  }
+
+  /* ── CLOCK — the sensor reads out row by row on a clock tick. Disrupt it
+        and rows are read at the wrong moment: repeated, skipped, sheared. ── */
+  if(uClock > 0.002){
+    float row  = floor(wuv.y * uRes.y);
+    float grp  = 1.0 + floor(uClock * 22.0);
+    float jam  = hash(vec2(floor(row / grp), floor(t * 14.0)));
+    float rep  = floor(row / grp) * grp;                 /* row repeat */
+    row = mix(row, rep, step(0.42, jam));
+    float shear = (hash(vec2(floor(row/grp) * 3.1, floor(t*9.0))) - 0.5)
+                * step(0.72, jam) * uClock * 0.35;
+    wuv = vec2(wuv.x + shear, (row + 0.5) / uRes.y);
   }
 
   /* ── SLIT — per-pixel time displacement. the delay FIELD is the instrument:
@@ -314,6 +344,7 @@ uniform float uHeadSw, uWave, uChromaLoss;
 uniform float uSmear, uGhost;
 uniform float uBitAmt;
 uniform vec3  uBitMask;
+uniform float uBitSwap, uBus, uStarve;
 
 /* composite sample at a horizontal offset, QAM'd at fs/4 so the carrier is
    [1,0,-1,0] / [0,1,0,-1] — four taps, integer indexing, no sin(), no cos() */
@@ -412,9 +443,41 @@ void main(){
     col += spill * uSmear * 0.42;
   }
 
-  /* ── BITPLANE DROPOUT — the only stage here that is literally circuit
-        bending: corrupt the number, not a model of an analogue defect.
-        JS rotates the mask in BURSTS; continuous masking is just posterise ── */
+  /* ── BIT SWAP — pixel values are numbers. Short two data lines and bits
+        move BETWEEN channels: bit 6 of red lands in blue. The result is
+        colours that are impossible, not merely oversaturated — no filter
+        and no photograph can produce them, which is the signature. ── */
+  if(uBitSwap > 0.002){
+    ivec3 v = ivec3(clamp(col,0.0,1.0) * 255.0);
+    int n = int(1.0 + floor(uBitSwap * 6.99));
+    int m = 1 << n;
+    int rb = v.r & m, bb = v.b & m;
+    v.r = (v.r & ~m) | bb;
+    v.b = (v.b & ~m) | rb;
+    v.g = v.g ^ (m >> 1);
+    col = mix(col, vec3(v) / 255.0, min(1.0, uBitSwap * 2.2));
+  }
+
+  /* ── BUS SHORT — two signals forced onto one wire do not blend like paint.
+        They combine LOGICALLY: wired-AND, wired-OR, or contention. Hard and
+        deterministic, nothing like a fade. ── */
+  if(uBus > 0.002){
+    ivec3 v = ivec3(clamp(col,0.0,1.0) * 255.0);
+    ivec3 w = ivec3(v.r & v.g, v.g | v.b, v.b ^ v.r);
+    col = mix(col, vec3(w) / 255.0, uBus);
+  }
+
+  /* ── STARVE — under-power the chip and it half-fails: timing drifts, the
+        colour drains, the noise floor climbs. ── */
+  if(uStarve > 0.002){
+    float k = uStarve;
+    col = pow(max(col, 0.0), vec3(1.0 - k*0.55));
+    float g = dot(col, vec3(0.299,0.587,0.114));
+    col = mix(col, vec3(g), k*0.45) * (1.0 - k*0.30) + k*0.05;
+    col += (hash(uv*uRes + uTime*37.0) - 0.5) * k * 0.22;
+  }
+
+  /* ── BITPLANE DROPOUT — bursts of bits simply going missing ── */
   if(uBitAmt > 0.002){
     ivec3 v = ivec3(clamp(col,0.0,1.0) * 255.0);
     ivec3 m = ivec3(uBitMask);
@@ -788,6 +851,8 @@ function Engine(canvas){
       gl.uniform1f(m.uFeed, p.feed);
       gl.uniform1f(m.uOrbit, p.orbit);
       gl.uniform1f(m.uDroste, p.droste);
+      gl.uniform1f(m.uAddr, p.addr);
+      gl.uniform1f(m.uClock, p.clock);
       draw(work);
 
       /* ── SIGNAL ── */
@@ -808,6 +873,9 @@ function Engine(canvas){
       gl.uniform1f(s.uGhost, p.ghost);
       gl.uniform1f(s.uBitAmt, p.bitAmt);
       gl.uniform3f(s.uBitMask, p.bitMask[0], p.bitMask[1], p.bitMask[2]);
+      gl.uniform1f(s.uBitSwap, p.bitSwap);
+      gl.uniform1f(s.uBus, p.bus);
+      gl.uniform1f(s.uStarve, p.starve);
       draw(alt);
 
       /* ── SORT ── */
