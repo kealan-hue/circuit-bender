@@ -42,6 +42,14 @@ const V = {
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
   w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
+  bulge:0.5, bulgeRadius:0.5,
+  push:0, pushAngle:0,
+  wave2:0, waveFreq:0.5, waveAngle:0,
+  tx:0.5, ty:0.5, tScale:0.5, tRot:0.5,
+  strobe:0, strobeRate:0.5,
+  grain:0, grainSize:0.5,
+  sharpen:0, blur:0, bleach:0,
+  ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0,
@@ -56,6 +64,14 @@ const NEUTRAL = Object.assign({}, V, {
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
   w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
+  bulge:0.5, bulgeRadius:0.5,
+  push:0, pushAngle:0,
+  wave2:0, waveFreq:0.5, waveAngle:0,
+  tx:0.5, ty:0.5, tScale:0.5, tRot:0.5,
+  strobe:0, strobeRate:0.5,
+  grain:0, grainSize:0.5,
+  sharpen:0, blur:0, bleach:0,
+  ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0
 });
@@ -72,11 +88,13 @@ const STAGE = {
   comp:   ['ntsc','ghost'],
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
-  geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll'],
+  geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll',
+           'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','tx','ty','tScale','tRot'],
   beam:   ['water','waterBleed','scope','scopeLines','scopeGlow'],
   sort:   ['sort'],
   redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
   film:   ['s8','s8Dust','s8Burn','streak','streakAngle','over','overMode'],
+  grade:  ['strobe','strobeRate','grain','grainSize','sharpen','blur','bleach','ccLift','ccGamma','ccGain','ccTemp'],
   out:    ['post','dither','half','scan','noise','sat','con','route','duo']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
@@ -104,16 +122,16 @@ const VOICE = { scan:0.42, con:0.26, sat:0.42, tear:0.05, dither:0.14, noise:0.0
                 duo:0.62, axis:0.34 };
 const BENDS = [
   { a:'BITS',  b:'COLOR', p:{ axis:0.34, bitSwap:0.38, duo:0.35, dither:0.14 } },
-  { a:'CLOCK', b:'TIME',  p:{ axis:0.50, slit:0.44, slitMode:1, clock:0.20, wave:0.16 } },
+  { a:'CLOCK', b:'TIME',  p:{ axis:0.50, slit:0.85, slitMode:0, clock:0.35, wave:0.22 } },
   { a:'BITS',  b:'BUS',   p:{ axis:0.08, bus:0.42, dither:0.28, post:0.22 } },
   { a:'POWER', b:'LOOP',  p:{ axis:0.72, feed:0.42, orbit:0.58, con:0.36 } },
   { a:'ADDR',  b:'TIME',  p:{ axis:0.25, delayMix:0.48, delay:0.40, addr:0.22, ctime:0.20 } },
-  { a:'BUS',   b:'COLOR', p:{ axis:0.58, route:0.65, con:0.38, bus:0.18, dither:0.12 } },
+  { a:'BUS',   b:'COLOR', p:{ axis:0.14, bus:0.65, route:0.80, post:0.28, dither:0.22, con:0.45 } },
   { a:'ADDR',  b:'CLOCK', p:{ axis:0.00, addr:0.44, clock:0.22, tear:0.08 } },
-  { a:'BITS',  b:'TIME',  p:{ axis:0.42, echo:0.48, ctime:0.30, bitSwap:0.14 } },
-  { a:'POWER', b:'COLOR', p:{ axis:0.83, starve:0.36, sat:0.42, con:0.28, noise:0.06 } },
+  { a:'BITS',  b:'TIME',  p:{ axis:0.42, echo:0.84, ctime:0.75, bitSwap:0.28 } },
+  { a:'POWER', b:'COLOR', p:{ axis:0.82, starve:0.58, smear:0.45, sat:0.55, noise:0.18, con:0.35 } },
   { a:'BUS',   b:'LOOP',  p:{ axis:0.17, droste:0.46, feed:0.28, bus:0.16 } },
-  { a:'CLOCK', b:'POWER', p:{ axis:0.92, clock:0.50, headsw:0.45, wave:0.35, con:0.24 } },
+  { a:'CLOCK', b:'POWER', p:{ axis:0.92, clock:0.78, headsw:0.80, tear:0.35, wave:0.55, con:0.65, sat:0.50, starve:0.25 } },
   { a:'ADDR',  b:'LOOP',  p:{ axis:0.66, mosh:0.52, addr:0.20, delayMix:0.20, con:0.28 } }
 ];
 
@@ -504,7 +522,18 @@ const RACK = [
     K('w3d',        'WARP 3D', { def:0 }),
     K('w3dPitch',   'PITCH',   { def:0.5, detent:[0.5] }),
     K('w3dYaw',     'YAW',     { def:0.5, detent:[0.5] }),
-    K('w3dRoll',    'ROLL',    { def:0.5, detent:[0.5] })
+    K('w3dRoll',    'ROLL',    { def:0.5, detent:[0.5] }),
+    K('bulge',      'BULGE',   { def:0.5, detent:[0.5] }),
+    K('bulgeRadius','B RADIUS',{ def:0.5 }),
+    K('push',       'PUSH',    { def:0 }),
+    K('pushAngle',  'P ANGLE', { def:0 }),
+    K('wave2',      'WAVE 2',  { def:0 }),
+    K('waveFreq',   'W FREQ',  { def:0.5 }),
+    K('waveAngle',  'W ANGLE', { def:0 }),
+    K('tx',         'PAN X',   { def:0.5, detent:[0.5] }),
+    K('ty',         'PAN Y',   { def:0.5, detent:[0.5] }),
+    K('tScale',     'ZOOM',    { def:0.5, detent:[0.5] }),
+    K('tRot',       'ROTATE',  { def:0.5, detent:[0.5] })
   ]},
   { id:'beam', name:'BEAM', note:'resynthesis', wide:true, ctl:[
     K('water',      'WATERCOLOR', { def:0 }),
@@ -542,6 +571,19 @@ const RACK = [
     K('streakAngle','S ANGLE',    { def:0 }),
     K('over',       'OVERLAY',    { def:0 }),
     S('overMode',   'BLEND',      ['SCREEN','MULT','DIFF','ADD'])
+  ]},
+  { id:'grade', name:'GRADE', note:'stock and finish', wide:true, ctl:[
+    K('strobe',    'STROBE',     { def:0 }),
+    K('strobeRate','S RATE',     { def:0.5 }),
+    K('grain',     'GRAIN',      { def:0 }),
+    K('grainSize', 'G SIZE',     { def:0.5 }),
+    K('sharpen',   'SHARPEN',    { def:0 }),
+    K('blur',      'BLUR',       { def:0 }),
+    K('bleach',    'BLEACH',     { def:0 }),
+    K('ccLift',    'LIFT',       { def:0.5, detent:[0.5] }),
+    K('ccGamma',   'GAMMA',      { def:0.5, detent:[0.5] }),
+    K('ccGain',    'GAIN',       { def:0.5, detent:[0.5] }),
+    K('ccTemp',    'TEMP',       { def:0.5, detent:[0.5] })
   ]},
   { id:'out', name:'OUTPUT', wide:true, ctl:[
     K('post','QUANT',  { def:0 }),

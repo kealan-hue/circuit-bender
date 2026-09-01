@@ -93,6 +93,10 @@ uniform float uTile, uTileSpeed, uTileAngle;
 uniform float uSplit, uSplitCount, uSplitAngle;
 uniform float uStretch, uStretchWave, uStretchJag;
 uniform float uW3d, uW3dPitch, uW3dYaw, uW3dRoll;
+uniform float uBulge, uBulgeRadius;
+uniform float uPush, uPushAngle;
+uniform float uWave2, uWaveFreq, uWaveAngle;
+uniform float uTx, uTy, uTScale, uTRot;
 
 vec3 ringAt(vec2 uv, float back){
   float s = mod(uHead - back + uRingN*4.0, uRingN);
@@ -193,6 +197,43 @@ void main(){
         }
       }
     }
+  }
+
+  /* ── TRANSFORM — pan, zoom and rotate of sampling frame ── */
+  if(abs(uTx - 0.5) > 0.002 || abs(uTy - 0.5) > 0.002 || abs(uTScale - 0.5) > 0.002 || abs(uTRot - 0.5) > 0.002){
+    vec2 pTr = uv - 0.5;
+    float rAng = (uTRot - 0.5) * TAU;
+    float cR = cos(rAng), sR = sin(rAng);
+    mat2 rMat = mat2(cR, -sR, sR, cR);
+    float sc = exp((0.5 - uTScale) * 2.5);
+    pTr = rMat * pTr * sc;
+    pTr -= vec2(uTx - 0.5, uTy - 0.5);
+    uv = pTr + 0.5;
+  }
+
+  /* ── BULGE — radial lens distortion ── */
+  if(abs(uBulge - 0.5) > 0.002){
+    vec2 pB = uv - 0.5;
+    float rB = length(pB);
+    float bAmt = (uBulge - 0.5) * 2.0;
+    float radB = max(0.05, uBulgeRadius * 0.75 + 0.1);
+    if(rB < radB){
+      float k = 1.0 - (rB / radB);
+      float f = k * k * (3.0 - 2.0 * k);
+      pB *= (1.0 - bAmt * f * 0.65);
+      uv = pB + 0.5;
+    }
+  }
+
+  /* ── WAVE — sinusoidal UV displacement at an arbitrary angle ── */
+  if(uWave2 > 0.002){
+    float wAng = uWaveAngle * TAU;
+    vec2 wDir = vec2(cos(wAng), sin(wAng));
+    vec2 wPerp = vec2(-sin(wAng), cos(wAng));
+    float wCoord = dot(uv - 0.5, wPerp);
+    float wFreq = 4.0 + uWaveFreq * 36.0;
+    float wDisp = sin(wCoord * wFreq + t * 3.0) * uWave2 * 0.08;
+    uv += wDir * wDisp;
   }
 
   /* ── WARP — displacement driven by the picture's own luma gradient ── */
@@ -302,6 +343,23 @@ void main(){
     col = mix(col, vec3(grey + 0.16*uTear, grey*(1.0-0.4*uTear), grey + 0.12*uTear), bandTint);
     col *= interlace;
     col = clamp(col + vec3(0.06, -0.024, 0.042) * uTear, 0.0, 1.0);   /* overall magenta cast */
+  }
+
+  /* ── PUSH — directional smear gather ── */
+  if(uPush > 0.002){
+    float pAng = uPushAngle * TAU;
+    vec2 pDir = vec2(cos(pAng), sin(pAng)) * (uPush * 0.12);
+    vec3 pAcc = col;
+    float pTot = 1.0;
+    for(int i=1; i<=12; i++){
+      float fi = float(i) / 12.0;
+      float w = 1.0 - fi * 0.65;
+      vec2 tapUv = wuv - pDir * fi;
+      vec3 tc = ringLerp(tapUv, back);
+      pAcc += tc * w;
+      pTot += w;
+    }
+    col = mix(col, pAcc / pTot, min(1.0, uPush * 1.5));
   }
 
   /* ── ECHO — eight temporal taps, each tinted a different hue, summed.
@@ -668,6 +726,10 @@ uniform float uCga, uCgaPal, uAscii, uAsciiTint, uKey, uKeyHue, uKeyTol, uMask, 
 uniform float uStreak, uStreakAngle;
 uniform float uS8, uS8Dust, uS8Burn;
 uniform float uOver, uOverMode;
+uniform float uStrobe, uStrobeRate;
+uniform float uGrain, uGrainSize;
+uniform float uSharpen, uBlur, uBleach;
+uniform float uCcLift, uCcGamma, uCcGain, uCcTemp;
 uniform int   uInv;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
@@ -690,6 +752,20 @@ void main(){
   vec3 col = vec3(texture(uTex, cl + vec2(bleed,0.0)).r,
                   texture(uTex, cl).g,
                   texture(uTex, cl - vec2(bleed,0.0)).b);
+
+  /* ── STROBE — time-quantised frame hold and drop ── */
+  if(uStrobe > 0.002){
+    float sRate = mix(1.5, 24.0, uStrobeRate);
+    float sInterval = 1.0 / sRate;
+    float sDt = mod(uTime, sInterval);
+    float sBack = clamp(sDt * 30.0, 0.0, uRingN - 2.0);
+    float sLayer = mod(uHead - sBack + uRingN * 4.0, uRingN);
+    float sFl = floor(sLayer);
+    vec3 sCol = mix(texture(uRing, vec3(cl, sFl)).rgb,
+                    texture(uRing, vec3(cl, mod(sFl + 1.0, uRingN))).rgb,
+                    fract(sLayer));
+    col = mix(col, sCol, uStrobe);
+  }
 
   ivec2 fp = ivec2(gl_FragCoord.xy);
   float bd = bayer(fp) - 0.5;
@@ -906,6 +982,66 @@ void main(){
 
   if(uInv == 1) col = 1.0 - col;
   else if(uInv == 2) col = abs(1.0 - 2.0*col);
+
+  /* ── BLUR — 8-tap box blur ── */
+  if(uBlur > 0.002){
+    vec2 pxB = 1.0 / uRes;
+    float rB = 1.0 + uBlur * 8.0;
+    vec3 bAcc = col;
+    vec2 bOff[8] = vec2[8](
+      vec2(-1.0, 0.0), vec2(1.0, 0.0), vec2(0.0, -1.0), vec2(0.0, 1.0),
+      vec2(-0.707, -0.707), vec2(0.707, -0.707), vec2(-0.707, 0.707), vec2(0.707, 0.707)
+    );
+    for(int i=0; i<8; i++){
+      bAcc += texture(uTex, clamp(cl + bOff[i] * rB * pxB, 0.0, 1.0)).rgb;
+    }
+    col = mix(col, bAcc / 9.0, min(1.0, uBlur * 1.3));
+  }
+
+  /* ── SHARPEN — 4-tap unsharp mask ── */
+  if(uSharpen > 0.002){
+    vec2 pxS = 1.0 / uRes;
+    vec3 shN = texture(uTex, clamp(cl + vec2(0.0, pxS.y), 0.0, 1.0)).rgb;
+    vec3 shS = texture(uTex, clamp(cl - vec2(0.0, pxS.y), 0.0, 1.0)).rgb;
+    vec3 shE = texture(uTex, clamp(cl + vec2(pxS.x, 0.0), 0.0, 1.0)).rgb;
+    vec3 shW = texture(uTex, clamp(cl - vec2(pxS.x, 0.0), 0.0, 1.0)).rgb;
+    vec3 shLap = col * 4.0 - (shN + shS + shE + shW);
+    col = clamp(col + shLap * uSharpen * 1.3, 0.0, 1.0);
+  }
+
+  /* ── BLEACH — bleach bypass silver retention ── */
+  if(uBleach > 0.002){
+    float blL = luma(col);
+    vec3 blOver;
+    blOver.r = (col.r < 0.5) ? (2.0 * col.r * blL) : (1.0 - 2.0 * (1.0 - col.r) * (1.0 - blL));
+    blOver.g = (col.g < 0.5) ? (2.0 * col.g * blL) : (1.0 - 2.0 * (1.0 - col.g) * (1.0 - blL));
+    blOver.b = (col.b < 0.5) ? (2.0 * col.b * blL) : (1.0 - 2.0 * (1.0 - col.b) * (1.0 - blL));
+    col = mix(col, clamp(blOver, 0.0, 1.0), uBleach);
+  }
+
+  /* ── COLORCORR — lift / gamma / gain / temperature grading ── */
+  if(abs(uCcLift - 0.5) > 0.002 || abs(uCcGamma - 0.5) > 0.002 || abs(uCcGain - 0.5) > 0.002 || abs(uCcTemp - 0.5) > 0.002){
+    float ccGain = uCcGain * 2.0;
+    col *= ccGain;
+    float ccLift = (uCcLift - 0.5) * 0.5;
+    col = ccLift + (1.0 - ccLift) * col;
+    float ccGam = exp((0.5 - uCcGamma) * 2.0);
+    col = pow(max(col, vec3(0.0)), vec3(ccGam));
+    float ccT = (uCcTemp - 0.5) * 0.4;
+    col.r = clamp(col.r + ccT, 0.0, 1.0);
+    col.b = clamp(col.b - ccT, 0.0, 1.0);
+    col = clamp(col, 0.0, 1.0);
+  }
+
+  /* ── GRAIN — luminance-dependent film grain ── */
+  if(uGrain > 0.002){
+    float gScale = max(1.0, floor(mix(1.0, 5.0, uGrainSize)));
+    vec2 gCoord = floor(cl * uRes / gScale);
+    float gn = hash(gCoord + vec2(uTime * 47.13, uTime * 91.71)) - 0.5;
+    float gL = luma(col);
+    float gShadow = mix(1.25, 0.25, gL);
+    col += vec3(gn) * uGrain * gShadow * 0.45;
+  }
 
   /* ── LIGHTSTREAK — anamorphic optical flare ── */
   if(uStreak > 0.002){
@@ -1259,6 +1395,17 @@ function Engine(canvas){
       gl.uniform1f(m.uW3dPitch, p.w3dPitch);
       gl.uniform1f(m.uW3dYaw, p.w3dYaw);
       gl.uniform1f(m.uW3dRoll, p.w3dRoll);
+      gl.uniform1f(m.uBulge, p.bulge);
+      gl.uniform1f(m.uBulgeRadius, p.bulgeRadius);
+      gl.uniform1f(m.uPush, p.push);
+      gl.uniform1f(m.uPushAngle, p.pushAngle);
+      gl.uniform1f(m.uWave2, p.wave2);
+      gl.uniform1f(m.uWaveFreq, p.waveFreq);
+      gl.uniform1f(m.uWaveAngle, p.waveAngle);
+      gl.uniform1f(m.uTx, p.tx);
+      gl.uniform1f(m.uTy, p.ty);
+      gl.uniform1f(m.uTScale, p.tScale);
+      gl.uniform1f(m.uTRot, p.tRot);
       gl.uniform1f(m.uWater, p.water);
       gl.uniform1f(m.uWaterBleed, p.waterBleed);
       gl.uniform1f(m.uScope, p.scope);
@@ -1323,6 +1470,17 @@ function Engine(canvas){
       gl.uniform1f(q.uRingN, RING);
       gl.uniform1f(q.uTime, p.time);
       gl.uniform1f(q.uBend, p.bend);
+      gl.uniform1f(q.uStrobe, p.strobe);
+      gl.uniform1f(q.uStrobeRate, p.strobeRate);
+      gl.uniform1f(q.uGrain, p.grain);
+      gl.uniform1f(q.uGrainSize, p.grainSize);
+      gl.uniform1f(q.uSharpen, p.sharpen);
+      gl.uniform1f(q.uBlur, p.blur);
+      gl.uniform1f(q.uBleach, p.bleach);
+      gl.uniform1f(q.uCcLift, p.ccLift);
+      gl.uniform1f(q.uCcGamma, p.ccGamma);
+      gl.uniform1f(q.uCcGain, p.ccGain);
+      gl.uniform1f(q.uCcTemp, p.ccTemp);
       gl.uniform1f(q.uScan, p.scan);
       gl.uniform1f(q.uPost, p.post);
       gl.uniform1f(q.uDither, p.dither);
