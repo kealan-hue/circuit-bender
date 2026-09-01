@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CIRCUIT BENDER — bend your live camera signal in real time. Short the pins, turn the knobs, break the picture.">
 <title>CIRCUIT BENDER</title>
-<link rel="stylesheet" href="assets/css/panel.css?v=2">
+<link rel="stylesheet" href="assets/css/panel.css?v=3">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -92,9 +92,9 @@
     <div class="wire__read" id="wire-read">CHIP INTACT — NO BRIDGES</div>
 
     <div class="bay">
-      <div class="bay__lab">PATCH<br>BAY</div>
+      <div class="bay__lab">AUTO<br>MOVE</div>
       <div class="bay__jacks" id="patchbay"></div>
-      <div class="bay__hint">arm a source, then touch any knob — that knob then moves on its own</div>
+      <div class="bay__hint">drag one onto a knob &rarr; that knob moves by itself. PULL removes it.</div>
     </div>
   </section>
 
@@ -113,10 +113,10 @@
   </footer>
 </div>
 
-<script src="assets/js/sigil.js?v=2"></script>
-<script src="assets/js/ui.js?v=2"></script>
-<script src="assets/js/engine.js?v=2"></script>
-<script src="assets/js/app.js?v=2"></script>
+<script src="assets/js/sigil.js?v=3"></script>
+<script src="assets/js/ui.js?v=3"></script>
+<script src="assets/js/engine.js?v=3"></script>
+<script src="assets/js/app.js?v=3"></script>
 <script>document.getElementById('foot-ser').textContent = localStorage.getItem('mangler.serial')||'';</script>
 </body>
 </html>

@@ -5,7 +5,7 @@ tear it, delay it, feed it back on itself, sort its pixels, smear it like a
 dying VHS tape. Point it at yourself or the room and turn knobs until it looks
 wrong in an interesting way.
 
-**Try it:** https://kealan-hue.github.io/mangler/ (needs a camera + HTTPS,
+**Try it:** https://kealan-hue.github.io/circuit-bender/ (needs a camera + HTTPS,
 so open it on your phone or a laptop with a webcam)
 
 ---

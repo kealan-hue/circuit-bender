@@ -26,18 +26,18 @@ const SERIAL = (() => {
 const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
 
 /* ── the parameter set ─────────────────────────────────────── */
-/* The unit boots already glitching, not clean-then-you-add-damage — a
-   reference worth matching stays broken by default and you dial the
-   character, you don't dial broken-ness into existence from nothing. TEAR +
-   POST + NOISE are the baseline "always some current running through it." */
+/* Resting state: the SUBJECT stays readable and the damage is chromatic —
+   hue pushed hard, colour banded, a fine scanline weave, a few pixels of edge
+   fringe. Geometry-destroying stages (sort, mosh, warp, slit, fold) start at
+   zero; they are where you go, not where you start. */
 const V = {
-  gain:0.5, bias:0.5, mix:1,
+  gain:0.5, bias:0.62, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
-  tear:0.38, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
+  tear:0.10, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
-  post:0.28, dither:0.3, half:0, scan:0.18, noise:0.14, inv:0
+  post:0.34, dither:0.42, half:0, scan:0.30, noise:0.06, inv:0
 };
 const DEF = Object.assign({}, V);
 
@@ -559,6 +559,49 @@ function bindPatch(w, id){
                         : (SOURCES[armed].label + ' → ' + w.spec.label));
   }, true);
 }
+/* One gesture for the whole machine: REWIRE drags pin→pin, this drags
+   jack→knob. Arm-then-tap still works, but nobody discovers it. */
+function dragJack(el, key){
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const ghost = UI.el('div', 'jack__drag');
+    ghost.style.setProperty('--c', key === 'CLR' ? '#8b939c' : SOURCES[key].color);
+    ghost.textContent = key === 'CLR' ? 'PULL' : SOURCES[key].label;
+    document.body.append(ghost);
+    document.body.classList.add('is-patching');
+    const move = ev => {
+      ghost.style.left = ev.clientX + 'px';
+      ghost.style.top  = ev.clientY + 'px';
+      const k = knobUnder(ev.clientX, ev.clientY);
+      document.querySelectorAll('.ctl.is-target').forEach(n => n.classList.remove('is-target'));
+      if(k) k.classList.add('is-target');
+    };
+    const up = ev => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      ghost.remove();
+      document.body.classList.remove('is-patching');
+      document.querySelectorAll('.ctl.is-target').forEach(n => n.classList.remove('is-target'));
+      const target = knobUnder(ev.clientX, ev.clientY);
+      if(!target) return;
+      const id = target.dataset.p;
+      if(!id || !widgets[id] || widgets[id].spec.positions) return;
+      if(key === 'CLR'){ delete PATCH[id]; crt('PULLED ' + widgets[id].spec.label); }
+      else { PATCH[id] = { src:key, depth:0.55 };
+             crt(SOURCES[key].label + ' NOW MOVES ' + widgets[id].spec.label); }
+      armed = null;
+      paintPatch();
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    move(e);
+  });
+}
+function knobUnder(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest ? el.closest('.ctl[data-p]') : null;
+}
+
 function paintPatch(){
   for(const id in widgets){
     const w = widgets[id];
@@ -579,8 +622,9 @@ function buildPatchBay(){
     b.addEventListener('click', () => {
       armed = (armed === k) ? null : k;
       paintBay();
-      crt(armed ? ('PATCH ARMED — TOUCH A CONTROL') : 'PATCH IDLE');
+      crt(armed ? (SOURCES[k].label + ' ARMED — NOW TOUCH A KNOB') : 'IDLE');
     });
+    dragJack(b, k);
     bay.append(b);
     SOURCES[k].btn = b;
   });
@@ -590,8 +634,9 @@ function buildPatchBay(){
   clr.addEventListener('click', () => {
     armed = (armed === 'CLR') ? null : 'CLR';
     paintBay();
-    crt(armed ? 'PULL ARMED — TOUCH A CONTROL' : 'PATCH IDLE');
+    crt(armed ? 'PULL ARMED — NOW TOUCH A KNOB' : 'IDLE');
   });
+  dragJack(clr, 'CLR');
   bay.append(clr);
   SOURCES.CLR = { btn: clr };
   function paintBay(){

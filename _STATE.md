@@ -111,7 +111,7 @@ undoing work without a current instruction is its own failure — but it is
 
 ## WHAT EXISTS RIGHT NOW (fact, not opinion)
 
-- Live at `https://kealan-hue.github.io/mangler/`, public repo `kealan-hue/mangler`
+- Live at `https://kealan-hue.github.io/circuit-bender/`, public repo `kealan-hue/circuit-bender`
 - Vanilla JS + WebGL2, no dependencies, no build step
 - Pipeline: `INGEST → ring[32] → MANGLE → SIGNAL → SORT×N → POST`
 - 11 modules, ~40 controls, patch bay with 4 modulation sources

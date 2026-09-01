@@ -695,3 +695,17 @@ body.is-patching .knob, body.is-patching .fader{ box-shadow:0 0 0 1px rgba(255,2
   margin:0; padding:9px 0 0; border-top:1px solid #0d0f11;
   background:none; border-radius:0; box-shadow:none;
 }
+
+/* jack dragged onto a knob */
+.jack__drag{
+  position:fixed; z-index:99; pointer-events:none;
+  transform:translate(-50%,-50%);
+  padding:3px 7px; border-radius:3px;
+  font-size:7.5px; letter-spacing:.14em; font-weight:700;
+  color:#0b0c0d; background:var(--c);
+  box-shadow:0 2px 8px rgba(0,0,0,.7);
+}
+.ctl.is-target .knob__ring,
+.ctl.is-target .fader__body{
+  box-shadow:0 0 0 2px #4fc8ff, 0 0 12px rgba(79,200,255,.8);
+}
