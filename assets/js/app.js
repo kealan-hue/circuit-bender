@@ -26,14 +26,18 @@ const SERIAL = (() => {
 const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
 
 /* ── the parameter set ─────────────────────────────────────── */
+/* The unit boots already glitching, not clean-then-you-add-damage — a
+   reference worth matching stays broken by default and you dial the
+   character, you don't dial broken-ness into existence from nothing. TEAR +
+   POST + NOISE are the baseline "always some current running through it." */
 const V = {
   gain:0.5, bias:0.5, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
-  tear:0, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
+  tear:0.38, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
-  post:0, dither:0, half:0, scan:0.18, noise:0.05, inv:0
+  post:0.28, dither:0.3, half:0, scan:0.18, noise:0.14, inv:0
 };
 const DEF = Object.assign({}, V);
 

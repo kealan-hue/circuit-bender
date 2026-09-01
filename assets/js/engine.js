@@ -121,16 +121,40 @@ void main(){
     wuv += (grad*7.0 + field*0.30) * uWarp * 0.11 * (1.0 + B*3.5);
   }
 
-  /* ── TEAR — sparse per-scanline channel displacement ── */
-  float tear = 0.0, roll = 0.0;
+  /* ── TEAR — a punchy, graphic line-tear: bands of rows get shifted, some
+        bands blow out to pure black, some get a magenta wash, and every other
+        row darkens (interlace flicker), plus a small overall magenta cast.
+        This is a hard, immediate, poster-glitch look — not a subtle analogue
+        artifact — matched deliberately against a reference the picture needs
+        to read against at a glance, not on close inspection. ── */
+  float tear = 0.0, roll = 0.0, bandBlack = 0.0, bandTint = 0.0, interlace = 1.0;
   if(uTear > 0.002){
-    float chunk = mix(1.0, 16.0, fract(uTearRate*1.61 + 0.13));
-    float ln    = floor(wuv.y * uRes.y / chunk);
-    float seed  = floor(t * (1.5 + uTearRate*46.0));
-    float r     = hash(vec2(ln, seed));
-    float gate  = step(1.0 - (0.10 + uTear*0.75), r);
-    tear = gate * (hash(vec2(ln*1.73, seed*0.31)) - 0.5) * uTear * 0.55 * (1.0 + B*4.0);
-    roll = gate * (hash(vec2(seed*1.9, ln)) - 0.5) * uTear * 0.10 * (0.15 + B);
+    float e    = uTear * (1.0 + B*1.3);
+    float seed = floor(t * (2.0 + uTearRate*14.0));
+    float rows = uRes.y;
+    float band = max(1.0, floor(2.0 + 16.0*(1.0-0.5*e) * (0.3+0.7*hash(vec2(floor(wuv.y*rows/9.0), seed+777.0)))));
+    float ln   = floor(wuv.y * rows / band);
+    float sh   = 0.05 * e;                                     /* shift as a fraction of width */
+    tear = (hash(vec2(ln*1.73, seed*0.31)) - 0.5) * sh * 2.0;
+    float pick = hash(vec2(ln + 50.0, seed + 200.0));
+    bandBlack = step(pick, 0.04 * e);
+    bandTint  = (1.0 - bandBlack) * step(pick, 0.04*e + 0.08*e);
+    roll = (hash(vec2(seed*1.9, ln)) - 0.5) * 0.10 * e;
+    interlace = (mod(floor(wuv.y * rows), 2.0) < 1.0) ? 1.0 : (1.0 - 0.2*uTear);
+  }
+
+  /* ── SPLIT — a clean, always-on chromatic split: red walks one way, blue
+        the other, independently and jittered per row, green stays put. This
+        is the single most recognisable "broken circuit" cue and it needs to
+        read on its own, not only inside a gated burst. ── */
+  vec2 splitR = vec2(0.0), splitB = vec2(0.0);
+  if(uTear > 0.002){
+    float px  = 1.0 / uRes.x;
+    float base = (5.0 + 0.10 * uRes.x * uTear) * px;
+    float rowJ = (hash(vec2(floor(wuv.y*uRes.y), 42.0)) - 0.5);
+    float amt  = base * (1.0 + 0.8*rowJ) * (1.0 + B*1.6);
+    splitR = vec2(-amt, 0.0);
+    splitB = vec2( amt, 0.0);
   }
 
   /* ── SLIT — per-pixel time displacement. the delay FIELD is the instrument:
@@ -151,12 +175,20 @@ void main(){
         static scene looks normal; anything moving fringes into the past ── */
   float ct = uCTime * (uRingN - 3.0) / 2.6;
 
-  vec2 uvR = wuv + vec2(tear,        roll);
+  vec2 uvR = wuv + vec2(tear, roll) + splitR;
   vec2 uvG = wuv + vec2(tear*-0.34,  0.0);
-  vec2 uvB = wuv + vec2(tear* 0.73, -roll);
+  vec2 uvB = wuv + vec2(tear* 0.73, -roll) + splitB;
   vec3 col = vec3(ringLerp(uvR, back).r,
                   ringLerp(uvG, back + ct).g,
                   ringLerp(uvB, back + ct*2.0).b);
+
+  if(uTear > 0.002){
+    col = mix(col, vec3(0.0), bandBlack);
+    float grey = dot(col, vec3(0.333));
+    col = mix(col, vec3(grey + 0.16*uTear, grey*(1.0-0.4*uTear), grey + 0.12*uTear), bandTint);
+    col *= interlace;
+    col = clamp(col + vec3(0.06, -0.024, 0.042) * uTear, 0.0, 1.0);   /* overall magenta cast */
+  }
 
   /* ── ECHO — eight temporal taps, each tinted a different hue, summed.
         motion becomes a rainbow comet. no trig, no HSV round-trip ── */
@@ -200,9 +232,22 @@ void main(){
     col = mix(col, d, smoothstep(0.55, 1.0, uDelayMix));
   }
 
-  /* ── GAIN / BIAS ── */
-  col = (col - 0.5) * (0.45 + uGain*2.1) + 0.5 + (uGain - 0.5)*0.28;
-  if(abs(uBias-0.5) > 0.004) col = hueRot(col, (uBias-0.5)*4.6);
+  /* ── GAIN — the exposure circuit itself failing: crushed blacks LIFT off
+        the floor, the gamma curve flattens (contrast drains rather than
+        just scales), and the image pushes warm — red gained up, blue cut.
+        Below detent this still behaves as a plain gain; above it, it damages. ── */
+  {
+    float g = clamp((uGain - 0.5) * 2.0, 0.0, 1.0);         /* 0 at detent, 1 at max */
+    float under = clamp((0.5 - uGain) * 2.0, 0.0, 1.0);      /* plain darken below detent */
+    col *= 1.0 - under * 0.55;
+    float lift  = 0.42 * g;
+    float gamma = mix(1.0, 0.35, g);
+    col = lift + (1.0 - lift) * pow(max(col, 0.0), vec3(gamma));
+    col.r = clamp(col.r * (1.0 + 0.20*g), 0.0, 1.0);
+    col.b = clamp(col.b * (1.0 - 0.16*g), 0.0, 1.0);
+  }
+  /* ── BIAS — global hue rotate, full range ── */
+  if(abs(uBias-0.5) > 0.004) col = hueRot(col, (uBias-0.5)*TAU);
   col = clamp(col, 0.0, 1.0);
 
   /* ── MOSH — block motion-vector carry, p-frames with no keyframe.
@@ -451,10 +496,16 @@ void main(){
   ivec2 fp = ivec2(gl_FragCoord.xy);
   float bd = bayer(fp) - 0.5;
 
-  /* ── QUANT — per-channel step counts drift apart; the Bayer offset turns
-        flat banding into structured dither. the grid is fixed in SCREEN space
-        while REGEN rotates the picture through it, so it slides on itself ── */
+  /* ── QUANT — punch the saturation up hard FIRST, then crush the levels.
+        oversaturated colour blocked into hard bands is the loud, graphic
+        "broken CCD" look; posterizing alone just looks like a filter. the
+        Bayer offset turns the flat banding into structured dither, and the
+        grid is fixed in SCREEN space while REGEN rotates the picture through
+        it, so it slides on itself. ── */
   if(uPost > 0.002){
+    float sat = 1.0 + 7.0 * uPost;
+    float grey = dot(col, vec3(0.299,0.587,0.114));
+    col = clamp(grey + (col - grey) * sat, 0.0, 1.0);
     float L = mix(22.0, 2.0, uPost);
     vec3 lv = vec3(L, max(2.0, L - uPost*2.0), max(2.0, L + uPost*1.5));
     col = floor(col*lv + 0.5 + bd*uDither*1.6) / lv;
@@ -495,6 +546,23 @@ void main(){
     col += (n - 0.5) * uNoise * 0.55;
     float drop = step(1.0 - uNoise*0.05*(1.0+uBend*1.2), hash(cl*uRes*1.7 - uTime*133.0));
     col = mix(col, vec3(step(0.5, n)), drop);
+
+    /* ── rare bright horizontal dropout bars — tracking-error colour, not
+          grey static. these read from across the room, which is the point ── */
+    float frameId = floor(uTime * 30.0);
+    float barRow   = floor(cl.y * uRes.y);
+    float barSeed  = hash(vec2(floor(barRow/3.0), frameId));
+    float barGate  = step(1.0 - uNoise*0.10, barSeed);
+    if(barGate > 0.5){
+      float pick = hash(vec2(frameId, barRow*0.7));
+      vec3 barCol = pick < 0.55 ? vec3(1.0, 0.35, 0.72)
+                  : pick < 0.85 ? vec3(1.0, 0.78, 0.90)
+                                : vec3(0.95, 0.98, 1.0);
+      float xs = hash(vec2(barRow, frameId+2.0));
+      float xw = 0.10 + 0.5*hash(vec2(barRow+9.0, frameId+3.0));
+      float inBar = step(xs, cl.x) * step(cl.x, min(1.0, xs+xw));
+      col = mix(col, barCol, inBar * uNoise * 2.0);
+    }
   }
 
   col = mix(texture(uRaw, cl).rgb, col, uMix);
