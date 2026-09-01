@@ -1,164 +1,113 @@
 # CIRCUIT BENDER
 
-A browser app that takes your live camera and lets you break it in real time —
-tear it, delay it, feed it back on itself, sort its pixels, smear it like a
-dying VHS tape. Point it at yourself or the room and turn knobs until it looks
+A browser app that takes your live camera and breaks it in real time. Point it
+at yourself or the room, cycle through the bends, and keep the ones that look
 wrong in an interesting way.
 
-**Try it:** https://kealan-hue.github.io/circuit-bender/ (needs a camera + HTTPS,
-so open it on your phone or a laptop with a webcam)
+**Try it:** https://kealan-hue.github.io/circuit-bender/ — needs a camera and
+HTTPS, so open it on a phone or a laptop with a webcam.
 
 ---
 
-## The top-row buttons — these are the things you originally asked for
+## The front door
 
-| Button | What it does |
-|---|---|
-| **BEND** (big red one) | Hold it down and everything gets pushed toward extreme — whatever's already turned up gets pushed further. Let go and it eases back. This is the "physical BEND button" you asked for. |
-| **SCRAMBLE** | Randomizes every knob at once — "scramble the circuit." Most land low so the result isn't total mush; a couple always land high so something's obviously happening. |
-| **HOLD** | Freezes the current frame. Everything else keeps running on that one frozen frame — so you can freeze a moment and keep bending it, per your spec. |
-| **KILL** | Snaps every control back to its default / off. The reset switch. |
-| **FRAME** | Saves what's on screen right now as a PNG. |
-| **REC** | Starts/stops recording a video clip of the mangled output (WebM/MP4). |
-| **SENSOR** | Flips between front and back camera. |
-| **MID** | Toggles processing resolution (full vs. half) if it's chugging on your phone. |
+What you get before touching anything. One screenful, shutter reachable with a
+thumb.
 
-## The knob modules — 11 stations, stack any combination
+**Twelve bends**, cycled with the arrows or a sideways swipe across the
+picture. Each is labelled by the two pins it shorts — `BITS–COLOR`,
+`CLOCK–TIME`, `POWER–LOOP` — and nothing tells you what any of them does. You
+find out by pointing the camera at your own face.
 
-Each box on the panel is a self-contained effect with its own on/off switch
-and 2–4 knobs. They run in a fixed order (listed below), and because each one
-feeds the next, turning on two at once gives you a third thing that's neither
-effect alone — that's the "unpredictable when combined" part.
+**Two knobs.** INTENSITY drives how hard the current bend is pushed. COLOUR
+moves where the colour lands.
 
-1. **SOURCE** — not an effect, the input stage. GAIN = contrast/brightness
-   punch. TINT = shifts the overall colour. DRY/WET fader at the bottom blends
-   the mangled picture back with the clean camera feed, so you can pull any
-   effect back to "barely there."
+**Buttons.** PHOTO saves a still. REC records a clip, capped at 20 seconds
+because unbounded recording fills a phone and the tab dies with nothing saved.
+CAM flips front/rear.
 
-2. **TIME BASE** — the camera remembers its last ~32 frames, and this pulls
-   different parts of the picture from different *moments* instead of all from
-   right now. SPREAD = how far back. FIELD picks the pattern: X = smears
-   sideways like a photo-finish, Y = smears top-to-bottom like a waterfall,
-   RAD = warps outward from the centre, LUMA = bright parts stay current while
-   dark parts lag behind, GRID = a checkered mix of all of it.
+**BEND**, held, throws two or three extra shorts across random pin pairs on top
+of whatever is already wired, each drifting at its own rate. They fall away when
+you let go, and the pairs are different every press.
 
-3. **DEFLECT** — TEAR = random horizontal glitch tears, like a bad cable.
-   RATE = how often. WARP = the picture bends itself based on its own
-   brightness (bright spots pull the image toward them). FOLD = kaleidoscope
-   mirroring.
+**Swipe up** (or tap PANEL) for everything else.
 
-4. **RASTER** *(rutt/etra)* — an old 1970s video-synth trick: the picture's
-   own brightness pushes its scanlines up and down like a 3D relief map, with
-   comb-like scan lines laid over it. DEFLECT = how strong. LINES = how fine
-   the comb is.
+## Behind the swipe
 
-5. **MOSH** — the "video compression broke" look. CARRY = blocks of the image
-   smear and drag when something moves, like a corrupted video codec that lost
-   its keyframe. Δ FRAME = blends in a ghost of an older frame. TAP = how far
-   back that ghost comes from.
+**REWIRE** comes first — a fake sensor chip, CBX-01, with eight pins. Drag one
+onto another to short them; tap a wire to cut it. Several bridges can run at
+once.
 
-6. **REGEN** *(feedback)* — like pointing a camera at its own monitor.
-   AMOUNT = how much of the last output frame gets fed back into the new one.
-   ORBIT = the feedback loop slowly zooms/spins as it repeats. DROSTE = turns
-   that into an infinite tunnel-zoom.
-
-7. **TRANSPORT** *(vhs)* — simulates a worn tape. HEAD SW = the torn/rolled
-   band you see at the very bottom of a VHS frame. EDGE WAVE = the wobbly,
-   breathing wave a stretched tape gets. CH LOSS = random scanlines randomly
-   lose their colour and go black-and-white, like tape dropout.
-
-8. **COMPOSITE** *(ntsc)* — simulates squeezing the picture down into an old
-   analogue TV signal and decoding it back out badly. ENCODE = how strong.
-   BURST = how much the colour bleeds/rainbows around edges. GHOST = a faint
-   double-image, like a weak antenna signal.
-
-9. **SENSOR** — damage at the camera-chip level. SMEAR = bright lights (like
-   a window or a lamp) streak upward, the way a cheap old camcorder's sensor
-   overloads. BITS = short random bursts of glitchy colour-block corruption —
-   this one's true "circuit bending": it corrupts the actual numbers, not a
-   simulated defect.
-
-10. **SORT** *(pixel sorting)* — takes pixels within a chosen brightness range
-    and sorts them into streaks. PASSES = how many sorting passes (more =
-    longer streaks). GATE ↓ / GATE ↑ = which brightness range gets sorted.
-    KEY = sort by brightness / darkness / raw colour value / strongest
-    channel — four different-looking results. AXIS = sideways or vertical.
-    DIR = sort direction. SPAN = short choppy streaks vs. long ones.
-
-11. **OUTPUT** — the finishing/CRT stage. QUANT = crushes the colours down to
-    fewer blocky steps (posterize). DITHER = adds a fine grain so that
-    crushing doesn't look flat. HALFTONE = turns the image into
-    newspaper-print dots. RASTER = scanlines + curved screen edge. HISS =
-    static/noise/dead pixels. POLARITY = normal, inverted, or solarized
-    (part-inverted, the weird one).
-
-## REWIRE — the manual circuit bend
-
-The panel on the right is a fake sensor chip, **CBX-01**, with eight pins.
-Every pin is a real parameter of the signal path:
-
-| Pin | Function | What it does to the picture |
+| Pin | Wire | What it breaks |
 |---|---|---|
-| **SUB** | substrate bias | exposure damage — lifted blacks, warm cast |
-| **RG** | reset gate | saturation and colour banding |
-| **OD** | output drain | R/G/B channel separation |
-| **HCK** | horizontal clock | line timing — torn/rolled rows |
-| **TG** | transfer gate | hue and phase |
-| **AB** | anti-bloom drain | bloom streaks and colour kill |
-| **VCK** | vertical clock | frame timing — time smear |
-| **VRF** | voltage reference | feedback |
+| `BITS` | data lines | bits land on the wrong colour channel |
+| `BUS` | shared wire | two signals fight, combining logically |
+| `ADDR` | address bus | the wrong pixel gets fetched entirely |
+| `CLOCK` | row clock | rows repeat, skip, shear |
+| `POWER` | supply rail | the chip half-fails |
+| `COLOR` | chroma path | colour collapses onto two hues |
+| `TIME` | frame store | pixels arrive from the past |
+| `LOOP` | output feed | the image eats itself |
 
-**Drag one pin onto another to short them together.** Tap a wire to cut it.
-You can run several bridges at once.
+A short is not shorthand for turning two knobs up. It **overrides the switch** —
+both stages go live even with their module rockers off. It **injects its own
+wandering current**, at a rate set by which two pins you joined. And it
+**cross-couples the pair**, so each drives the other. Eight pins is 28 bridges.
 
-A short is not a shortcut for turning two knobs up. It does three things a
-knob cannot:
+**AUTO MOVE**, the strip below, holds four wandering signals — LFO A, LFO B,
+DRIFT, SHOCK — plus PULL to disconnect. Drag one onto any knob and that knob
+starts moving by itself. Where REWIRE shorts two effects together, this makes a
+single knob move on its own.
 
-1. **It overrides the switch.** Both stages go live even if their module
-   rockers are off. Shorting two pins bypasses the thing meant to keep them
-   apart — that is what bending actually is.
-2. **It injects its own current.** The bridge carries a wandering signal whose
-   rate and phase come from *which two pins* you joined, so every pair has its
-   own character. Eight pins is 28 possible bridges.
-3. **It cross-couples the pair.** Each parameter drives the other, so they
-   feed back into one another instead of just sitting at their values.
+## The rack — 16 modules, 87 controls
 
-That is the part worth exploring — not the knobs.
+Under the chip. Every module has an on/off rocker; every knob is a continuous
+parameter, never a preset. They run in the order listed, and each feeds the
+next, so two switched on together give you a third thing that is neither.
 
-## Patch bay — the "combine for chaos" part
+| Module | What it does |
+|---|---|
+| **SOURCE** | input stage — gain, tint, and a dry/wet fader back to the clean feed |
+| **TIME BASE** | pulls parts of the picture from different moments in the last 32 frames |
+| **DEFLECT** | scanline tear, luma-driven warp, kaleidoscope fold |
+| **RASTER** | Rutt/Etra — brightness pushes scanlines into a relief map |
+| **MOSH** | blocks smear and drag, like a codec that lost its keyframe |
+| **REGEN** | video feedback, with orbit and an infinite Droste tunnel |
+| **TRANSPORT** | VHS — head-switch curl, edge wave, chroma dropout |
+| **COMPOSITE** | real NTSC encode to one wire, then decoded back badly |
+| **SENSOR** | CCD bloom smear, bursty bitplane dropout |
+| **BENDS** | the five real shorts: bit swap, bus, address, clock, starve |
+| **GEOMETRY** | tile, splitter, stretch, 3D perspective plane |
+| **BEAM** | watercolour bleed, and oscilloscope scanline resynthesis |
+| **SORT** | pixel sorting — a gate band, four sort keys, strided compare |
+| **REDRAW** | CGA, ASCII mosaic, chromakey, animated mask blocks |
+| **FILM** | Super 8 stock, anamorphic light streak, overlay from the frame ring |
+| **OUTPUT** | duotone, saturation, contrast, quantise, dither, halftone, CRT, hiss |
 
-The slim strip under the chip. Four wandering signals — **LFO A** (steady
-wobble), **LFO B** (slower, uneven), **DRIFT** (very slow random wander),
-**SHOCK** (sudden random spikes) — plus **PULL** to disconnect.
+## Notes
 
-Tap a jack to arm it, then tap any knob. That knob now **moves on its own**,
-driven by that signal, instead of sitting where you left it. It is hands-free
-automation, not routing.
+- SCRAMBLE randomises the rack and rewires the chip, but leaves GAIN, TINT and
+  DRY/WET alone — those are how you get back to something usable.
+- KILL returns everything to neutral. The resting look is applied once at boot
+  and is not what KILL restores you to.
+- Every knob shows its number, takes a typed value, drags to change (shift for
+  fine), and double-clicks back to default.
+- With no camera available it falls back to an internal bench pattern, so the
+  whole instrument is visible and testable without a webcam.
+- Press `T` for service mode — runs every stage at once and reports real cost
+  per frame. Currently 8.85 ms at 640×480, which is 113 fps with everything on
+  simultaneously, a state nothing in normal use reaches.
 
-Where REWIRE shorts two *effects* together, the patch bay makes a single
-*knob* move by itself. Arm SHOCK onto a knob that a bridge is already driving
-and the two fight over it.
+## Under it
 
-## Everything else
+Plain HTML, CSS and JavaScript. No dependencies, no build step, no framework.
+WebGL2 required.
 
-- Every knob shows its number, can be typed directly, drag up/down to change
-  (hold shift for slow/fine), double-click resets it.
-- Serves with **no camera** by falling back to an internal test-card pattern,
-  so the whole rig is visible even without a webcam.
-- No install, no build step — it's plain HTML/CSS/JS, opens straight in a
-  browser. Needs a browser that supports WebGL2 (basically anything from the
-  last ~6 years) and HTTPS (for camera permission).
+The pipeline: camera → a 32-layer texture array holding the last 32 frames →
+MANGLE (where a pixel is fetched *from*) → SIGNAL → SORT ×N → POST (what its
+value *becomes*) → screen, with the finished frame written back so feedback and
+mosh chew the output rather than the raw input.
 
-## What's underneath, briefly
-
-The panel look is old Sony consumer electronics (Walkman/Handycam-era):
-brushed metal, ribbed slide switches, small precise labels. The scratchy
-artwork silkscreened onto it is generated fresh per device from a serial
-number — it's cyber-sigilism style (thin barbed thorn-like linework), not a
-static logo.
-
----
-
-If something above still doesn't match what you pictured — tell me which
-effect or button feels off and what you expected instead, and I'll change it
-rather than you having to reverse-engineer it from the panel.
+Panel is Sony consumer kit c.1981–95 — ribbed switches, engraved scales, small
+wide-tracked type. The silkscreen is cyber sigilism, grown procedurally from
+the unit's serial number, so no two units carry the same marks.

@@ -218,11 +218,20 @@ async function openCamera(facing){
   const old = stream;
   ready = false;
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    source = bench; ready = true; dropStart(); opening = false;
+    source = bench; ready = true; opening = false;
     sizeTo(bench.width, bench.height);
+    const s = $('#start');
+    if(s){
+      const b = s.querySelector('b'); if(b) b.textContent = 'NO SENSOR API — TAP TO RETRY';
+    }
     crt('NO SENSOR API — BENCH PATTERN'); return;
   }
   crt('OPENING ' + (facing === 'user' ? 'FRONT' : 'REAR') + ' SENSOR');
+  const sPlate = $('#start');
+  if(sPlate){
+    const b = sPlate.querySelector('b');
+    if(b) b.textContent = 'OPENING SENSOR…';
+  }
   /* a prompt the user never answers must not leave a dead black rectangle —
      race the request and fall through to the bench pattern */
   const withTimeout = pr => Promise.race([pr,
@@ -235,8 +244,15 @@ async function openCamera(facing){
   } catch(e){
     try { stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio:false, video:true })); }
     catch(e2){
-      source = bench; ready = true; dropStart(); opening = false;
+      source = bench; ready = true; opening = false;
       sizeTo(bench.width, bench.height);
+      const s = $('#start');
+      if(s){
+        const b = s.querySelector('b');
+        if(b) b.textContent = 'SENSOR REFUSED — TAP TO RETRY';
+        const em = s.querySelector('em');
+        if(em) em.textContent = e2.name ? ('camera error: ' + e2.name) : 'camera access is required';
+      }
       crt('NO SENSOR — BENCH PATTERN (' + e2.name + ')');
       return;
     }
@@ -594,14 +610,22 @@ function buildChip(){
   function paint(){
     svg.innerHTML = '';
     WIRES.forEach((w, i) => {
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', arc(padAt(w.a), padAt(w.b)));
-      path.addEventListener('click', ev => {
+      const d = arc(padAt(w.a), padAt(w.b));
+      const cut = ev => {
         ev.stopPropagation();
         WIRES.splice(i, 1);
         paint();
         crt('CUT ' + PINS[w.a].name + '–' + PINS[w.b].name);
-      });
+      };
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hit.setAttribute('class', 'hit');
+      hit.setAttribute('d', d);
+      hit.addEventListener('click', cut);
+      svg.append(hit);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.addEventListener('click', cut);
       svg.append(path);
     });
     if(dragPath) svg.append(dragPath);
@@ -819,6 +843,7 @@ function buildPatchBay(){
     for(const k in SOURCES) if(SOURCES[k].btn) SOURCES[k].btn.classList.toggle('armed', armed === k);
     document.body.classList.toggle('is-patching', !!armed);
   }
+  buildPatchBay.repaint = paintBay;
   paintBay();
 }
 
@@ -906,10 +931,15 @@ function resetAll(){
     const r = widgets['@'+s]; if(r) r.set(true, false);
     document.querySelector('[data-mod="'+s+'"]').classList.remove('off');
   }
+  state.intensity = 0.5;
+  state.colour = 0.5;
+  if(widgets['@int']) widgets['@int'].set(0.5, false);
+  if(widgets['@col']) widgets['@col'].set(0.5, false);
   for(const k in PATCH) delete PATCH[k];
   WIRES.length = 0;
   if(buildChip.repaint) buildChip.repaint();
   armed = null;
+  if(buildPatchBay.repaint) buildPatchBay.repaint();
   paintPatch();
   state.hold = false; $('#b-hold').classList.remove('on');
   engine.flush();
@@ -1088,13 +1118,12 @@ function boot(){
   buildPatchBay();
   $('#meters').append(mLevel, mSort, mBend);
   wire();
+  source = bench; ready = true;
+  sizeTo(bench.width, bench.height);
   requestAnimationFrame(loop);
-  openCamera('environment');
 
   const s = $('#start');
-  if(s) s.addEventListener('click', () => { s.remove(); openCamera(state.facing); });
-  /* iOS will not grant the sensor without a gesture, so the plate stays until
-     a source is actually live — desktop drops it on its own a beat later */
+  if(s) s.addEventListener('click', () => { openCamera(state.facing); });
 }
 
 /* ── SERVICE MODE — press T. runs the whole chain flat out with every stage
@@ -1149,7 +1178,8 @@ function step(n){
 
 window.CB = { selftest, step, V, DEF, ON, PATCH, STAGE, PINS, WIRES, BENDS, VOICE, applyBend,
               widgets, scramble, resetAll, state,
-                   get engine(){ return engine; }, get params(){ return P; } };
+                   get engine(){ return engine; }, get params(){ return P; },
+                   get source(){ return source; }, get ready(){ return ready; } };
 
 if(document.readyState === 'loading') addEventListener('DOMContentLoaded', boot);
 else boot();
