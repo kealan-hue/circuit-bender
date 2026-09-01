@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   MANGLER — the instrument.
+   CIRCUIT BENDER — the instrument.
 
    A module is a STAGE of the signal path. Its rocker switches the stage in
    and out of circuit; its knobs are only reachable when the stage is in.
@@ -14,12 +14,12 @@ const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
 
 /* ── serial: the unit's identity, and the seed its panel sigils grow from ── */
 const SERIAL = (() => {
-  let s = localStorage.getItem('mangler.serial');
+  let s = localStorage.getItem('circuitbender.serial');
   if(!s){
-    s = 'MG' + Math.floor(Math.random()*9000+1000) + '-' +
+    s = 'CB' + Math.floor(Math.random()*9000+1000) + '-' +
         String.fromCharCode(65+Math.floor(Math.random()*26)) +
         Math.floor(Math.random()*90+10);
-    localStorage.setItem('mangler.serial', s);
+    localStorage.setItem('circuitbender.serial', s);
   }
   return s;
 })();
@@ -67,6 +67,30 @@ const SOURCES = {
 const PATCH = {};                      /* param → { src, depth } */
 let armed = null;
 
+/* ── REWIRE: the sensor chip's pins, and the bridges shorted across them.
+      Every pin is a REAL parameter of the signal path. A wire between two
+      pins shorts them: both stages are forced live regardless of their
+      rocker, the bridge injects its own wandering current, and the pair is
+      cross-coupled so each drives the other. This is the one control that
+      overrides a switch instead of obeying it — which is what bending is.
+      8 pins = 28 possible bridges, and each pair has its own character. ── */
+const PINS = [
+  { side:'l', name:'SUB', long:'substrate bias',   p:'gain',   k:0.92, was:'exposure' },
+  { side:'l', name:'RG',  long:'reset gate',       p:'post',   k:0.80, was:'saturation & banding' },
+  { side:'l', name:'OD',  long:'output drain',     p:'tear',   k:0.85, was:'R/G/B separation' },
+  { side:'l', name:'HCK', long:'horizontal clock', p:'headsw', k:0.72, was:'line timing' },
+  { side:'r', name:'TG',  long:'transfer gate',    p:'bias',   k:0.88, was:'hue & phase' },
+  { side:'r', name:'AB',  long:'anti-bloom drain', p:'smear',  k:0.78, was:'bloom & colour kill' },
+  { side:'r', name:'VCK', long:'vertical clock',   p:'slit',   k:0.70, was:'frame timing' },
+  { side:'r', name:'VRF', long:'voltage ref',      p:'feed',   k:0.58, was:'feedback' }
+];
+PINS.forEach((pin, i) => pin.id = i);
+const WIRES = [];                      /* [{a,b}] — pin index pairs */
+
+/* param → the stage that owns it, so a bridge can force that stage live */
+const OWNER = {};
+for(const st in STAGE) STAGE[st].forEach(pr => OWNER[pr] = st);
+
 const state = {
   bend:0, bendTarget:0, hold:false, facing:'user',
   ntscPhase:0, bitMask:[0,0,0], burst:0, frame:0
@@ -112,9 +136,9 @@ const bench = (() => {
     x.translate(320, 388);
     x.rotate(Math.sin(f/40)*0.12);
     x.fillStyle = '#e9ecef';
-    x.font = '700 54px ui-monospace,Menlo,monospace';
+    x.font = '700 40px ui-monospace,Menlo,monospace';
     x.textAlign = 'center';
-    x.fillText('MANGLER', 0, 14);
+    x.fillText('CIRCUIT BENDER', 0, 14);
     x.restore();
     x.strokeStyle = '#d8232a'; x.lineWidth = 6;
     x.beginPath();
@@ -189,6 +213,20 @@ function build(t){
     if(!src) continue;
     const base = DEF[k] === 0.5 ? P[k] : P[k];
     P[k] = clamp(base + src.fn(t) * pt.depth * 0.5, 0, 1);
+  }
+
+  /* ── BRIDGES — applied after gating, because shorting two pins is exactly
+        the act of bypassing the switch that was meant to isolate them ── */
+  for(let i=0;i<WIRES.length;i++){
+    const A = PINS[WIRES[i].a], B = PINS[WIRES[i].b];
+    /* rate and phase come from the pin pair, so every bridge has its own
+       feel — this is what makes 28 combinations worth discovering */
+    const rate = 0.26 + ((A.id*7 + B.id*13) % 9) * 0.21;
+    const ph   = A.id * 2.31 + B.id * 1.77;
+    const cur  = 0.5 + 0.5 * Math.sin(t * rate + ph);
+    const vA = P[A.p], vB = P[B.p];
+    P[A.p] = clamp(Math.max(vA, cur * A.k) + vB * 0.28, 0, 1);
+    P[B.p] = clamp(Math.max(vB, cur * B.k) + vA * 0.28, 0, 1);
   }
 
   /* BEND: shove the whole chain somewhere extreme for as long as it is held.
@@ -340,6 +378,123 @@ const RACK = [
 ];
 
 const widgets = {};
+/* ══ REWIRE — the chip, the wires, and the dragging ═════════ */
+const pinEl = [];
+function buildChip(){
+  const chip  = $('#chip');
+  const svg   = $('#chip-wires');
+  const colL  = $('#pins-l');
+  const colR  = $('#pins-r');
+  if(!chip) return;
+
+  PINS.forEach(pin => {
+    const b = UI.el('button', 'pin');
+    b.type = 'button';
+    b.dataset.pin = pin.id;
+    b.title = pin.name + ' — ' + pin.long + ' · ' + pin.was;
+    b.innerHTML = '<span class="pin__name">' + pin.name + '</span>' +
+                  '<span class="pin__lead"></span>' +
+                  '<span class="pin__pad"></span>';
+    pinEl[pin.id] = b;
+    (pin.side === 'l' ? colL : colR).append(b);
+  });
+
+  /* pad centres are measured from the chip box, so the wires stay attached
+     through every reflow — a resize or an orientation change would otherwise
+     leave them hanging in the old positions */
+  function padAt(id){
+    const r = pinEl[id].querySelector('.pin__pad').getBoundingClientRect();
+    const c = chip.getBoundingClientRect();
+    return { x: r.left - c.left + r.width/2, y: r.top - c.top + r.height/2 };
+  }
+  function arc(A, B){
+    const mx = (A.x + B.x)/2;
+    const my = (A.y + B.y)/2 + Math.abs(A.y - B.y)*0.10 + 16;
+    return 'M' + A.x + ',' + A.y + ' Q' + mx + ',' + my + ' ' + B.x + ',' + B.y;
+  }
+
+  let dragFrom = null, dragPath = null;
+
+  function paint(){
+    svg.innerHTML = '';
+    WIRES.forEach((w, i) => {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', arc(padAt(w.a), padAt(w.b)));
+      path.addEventListener('click', ev => {
+        ev.stopPropagation();
+        WIRES.splice(i, 1);
+        paint();
+        crt('CUT ' + PINS[w.a].name + '–' + PINS[w.b].name);
+      });
+      svg.append(path);
+    });
+    if(dragPath) svg.append(dragPath);
+
+    const live = new Set();
+    WIRES.forEach(w => { live.add(w.a); live.add(w.b); });
+    pinEl.forEach((el, i) => {
+      el.classList.toggle('is-live', live.has(i));
+      el.classList.toggle('is-arm', dragFrom === i);
+    });
+    $('#wire-led').classList.toggle('on', WIRES.length > 0);
+    $('#wire-read').innerHTML = WIRES.length
+      ? WIRES.map(w => '<b>' + PINS[w.a].name + '–' + PINS[w.b].name + '</b>').join(' &nbsp;·&nbsp; ')
+      : 'CHIP INTACT — NO BRIDGES';
+  }
+
+  function pinUnder(x, y){
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest && el.closest('.pin');
+    return btn ? +btn.dataset.pin : null;
+  }
+
+  chip.addEventListener('pointerdown', e => {
+    const id = pinUnder(e.clientX, e.clientY);
+    if(id == null) return;
+    e.preventDefault();
+    dragFrom = id;
+    chip.classList.add('is-wiring');
+    dragPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    dragPath.setAttribute('class', 'is-drag');
+    chip.setPointerCapture(e.pointerId);
+    paint();
+  });
+
+  chip.addEventListener('pointermove', e => {
+    if(dragFrom == null) return;
+    const c = chip.getBoundingClientRect();
+    dragPath.setAttribute('d', arc(padAt(dragFrom),
+      { x: e.clientX - c.left, y: e.clientY - c.top }));
+    paint();
+  });
+
+  function endDrag(e){
+    if(dragFrom == null) return;
+    const to = pinUnder(e.clientX, e.clientY);
+    const from = dragFrom;
+    dragFrom = null; dragPath = null;
+    chip.classList.remove('is-wiring');
+    if(to != null && to !== from){
+      const dupe = WIRES.some(w => (w.a === from && w.b === to) || (w.a === to && w.b === from));
+      if(dupe) crt('ALREADY BRIDGED');
+      else {
+        WIRES.push({ a: from, b: to });
+        crt('SHORT ' + PINS[from].name + '–' + PINS[to].name +
+            '  (' + PINS[from].was + ' × ' + PINS[to].was + ')');
+      }
+    }
+    paint();
+  }
+  chip.addEventListener('pointerup', endDrag);
+  chip.addEventListener('pointercancel', endDrag);
+
+  if(window.ResizeObserver) new ResizeObserver(() => paint()).observe(chip);
+  addEventListener('resize', paint);
+
+  buildChip.repaint = paint;
+  paint();
+}
+
 function buildRack(){
   const rack = $('#rack');
   RACK.forEach((mod, mi) => {
@@ -493,6 +648,18 @@ function scramble(hard){
     if(r) r.set(on, true);
     document.querySelector('[data-mod="'+s+'"]').classList.toggle('off', !on);
   }
+  /* SCRAMBLE rewires the chip too — the button says scramble CIRCUIT, and
+     leaving the bridges untouched would make that a lie */
+  WIRES.length = 0;
+  const nWires = Math.floor(Math.random() * (hard ? 4 : 3));
+  for(let i=0;i<nWires;i++){
+    const a = Math.floor(Math.random()*PINS.length);
+    let b = Math.floor(Math.random()*PINS.length);
+    if(b === a) b = (b + 1 + Math.floor(Math.random()*(PINS.length-1))) % PINS.length;
+    if(!WIRES.some(w => (w.a===a&&w.b===b)||(w.a===b&&w.b===a))) WIRES.push({a,b});
+  }
+  if(buildChip.repaint) buildChip.repaint();
+
   if(hard && Math.random() < 0.6){
     const keys = Object.keys(SOURCES).filter(k => k !== 'CLR');
     const dests = Object.keys(V).filter(k => widgets[k] && !widgets[k].spec.positions);
@@ -514,6 +681,8 @@ function resetAll(){
     document.querySelector('[data-mod="'+s+'"]').classList.remove('off');
   }
   for(const k in PATCH) delete PATCH[k];
+  WIRES.length = 0;
+  if(buildChip.repaint) buildChip.repaint();
   armed = null;
   paintPatch();
   state.hold = false; $('#b-hold').classList.remove('on');
@@ -630,6 +799,7 @@ function boot(){
   bs.innerHTML = Sigil.svg({ seed:SEED+31, arms:3, depth:2, cells:1, w:80, h:80 });
   $('#b-bend').append(bs);
   buildRack();
+  buildChip();
   buildPatchBay();
   $('#meters').append(mLevel, mSort, mBend);
   wire();
@@ -686,7 +856,7 @@ function step(n){
            bend: +state.bend.toFixed(3) };
 }
 
-window.MANGLER = { selftest, step, V, DEF, ON, PATCH, STAGE, widgets, scramble, resetAll,
+window.CB = { selftest, step, V, DEF, ON, PATCH, STAGE, PINS, WIRES, widgets, scramble, resetAll,
                    get engine(){ return engine; }, get params(){ return P; } };
 
 if(document.readyState === 'loading') addEventListener('DOMContentLoaded', boot);

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   MANGLER VS-1 — enclosure
+   CIRCUIT BENDER CB-1 — enclosure
 
    Two references, held together:
    · SONY, c.1981-95 — graphite and brushed silver, ribbed slide switches,
@@ -121,14 +121,14 @@ body.is-fault{ filter:saturate(.2); }
 .top{
   display:grid; gap:12px; margin-bottom:12px;
   grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
-  grid-template-areas:'screen transport' 'screen bay';
+  grid-template-areas:'screen transport' 'screen wire';
   align-items:start;
 }
 .screen{ grid-area:screen; }
 .transport{ grid-area:transport; }
-.bay{ grid-area:bay; }
+.wire{ grid-area:wire; }
 @media (max-width:900px){
-  .top{ grid-template-columns:1fr; grid-template-areas:'screen' 'transport' 'bay'; }
+  .top{ grid-template-columns:1fr; grid-template-areas:'screen' 'transport' 'wire'; }
 }
 .screen__bezel{
   position:relative; padding:11px;
@@ -576,4 +576,122 @@ body.is-patching .knob, body.is-patching .fader{ box-shadow:0 0 0 1px rgba(255,2
 
 @media (prefers-reduced-motion:reduce){
   *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+
+
+/* ── REWIRE — the sensor chip, and the wires you bridge across it ─────────
+   This is the manual circuit-bend: every pin is a real parameter of the
+   signal path, and a wire between two of them SHORTS them — it forces both
+   stages live regardless of their rocker, injects its own wandering current,
+   and cross-couples the pair so each drives the other. Bridging is the only
+   control here that overrides a switch rather than obeying it. */
+.wire{
+  display:flex; flex-direction:column; gap:10px;
+  background:linear-gradient(180deg,#1e2126 0%,#16181b 100%);
+  border:1px solid #0a0b0c; border-radius:5px;
+  padding:11px 13px 12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 7px rgba(0,0,0,.5);
+}
+.wire__head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.wire__head b{
+  font-size:10px; letter-spacing:.24em; color:#c8ced5; font-weight:700;
+}
+.wire__head em{
+  font-style:normal; font-size:7.5px; letter-spacing:.09em; color:#5e666e;
+}
+.wire__led{
+  width:7px; height:7px; border-radius:50%; flex:0 0 auto;
+  background:#2a2f34; box-shadow:inset 0 0 2px #000;
+}
+.wire__led.on{
+  background:#f0a020;
+  box-shadow:0 0 7px rgba(240,160,32,.85), inset 0 0 2px rgba(0,0,0,.5);
+}
+
+.chip{
+  position:relative;
+  display:grid; grid-template-columns:1fr auto 1fr;
+  align-items:center; padding:4px 0 2px;
+  touch-action:none;
+}
+.chip__col{ display:flex; flex-direction:column; gap:9px; }
+.chip__ic{
+  position:relative; width:76px; min-height:148px; border-radius:4px;
+  background:linear-gradient(158deg,#2b2f35 0%,#191c1f 58%,#131517 100%);
+  border:1px solid #000;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
+             inset 0 -1px 0 rgba(0,0,0,.6),
+             0 3px 9px rgba(0,0,0,.6);
+}
+/* the orientation notch every real DIP package carries */
+.chip__notch{
+  position:absolute; top:-1px; left:50%; transform:translateX(-50%);
+  width:16px; height:8px; border-radius:0 0 9px 9px;
+  background:#0d0f11; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06);
+}
+.chip__name{
+  font-size:8px; letter-spacing:.18em; color:#7b838c; font-weight:600;
+  transform:rotate(-90deg); white-space:nowrap;
+}
+
+.pin{
+  display:flex; align-items:center; gap:5px;
+  background:none; border:0; padding:2px 0; margin:0;
+  cursor:crosshair; touch-action:none; -webkit-tap-highlight-color:transparent;
+}
+.chip__col--l .pin{ flex-direction:row;         justify-content:flex-end; }
+.chip__col--r .pin{ flex-direction:row-reverse; justify-content:flex-end; }
+.pin__name{
+  font-size:7.5px; letter-spacing:.1em; color:#8b939c; font-weight:600;
+  min-width:24px;
+}
+.chip__col--l .pin__name{ text-align:right; }
+.chip__col--r .pin__name{ text-align:left; }
+.pin__lead{
+  width:14px; height:2px; flex:0 0 auto;
+  background:linear-gradient(90deg,#3f454c,#828a94);
+}
+.pin__pad{
+  width:12px; height:12px; border-radius:2px; flex:0 0 auto;
+  background:radial-gradient(circle at 34% 28%, #a4adb7, #4d545c 58%, #23262a);
+  border:1px solid #000;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 1px 2px rgba(0,0,0,.6);
+}
+.pin.is-live .pin__pad{
+  background:radial-gradient(circle at 34% 28%, #ffdca8, #f0a020 55%, #7c4f08);
+  box-shadow:0 0 8px rgba(240,160,32,.75), inset 0 1px 0 rgba(255,255,255,.4);
+}
+.pin.is-live .pin__name{ color:#d8b070; }
+.pin.is-arm .pin__pad{
+  background:radial-gradient(circle at 34% 28%, #cdeeff, #4fc8ff 55%, #0b4d6b);
+  box-shadow:0 0 10px rgba(79,200,255,.95);
+}
+.chip.is-wiring .pin__pad{ transform:scale(1.12); }
+
+.chip__wires{
+  position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; overflow:visible;
+}
+.chip__wires path{
+  fill:none; stroke:#f0a020; stroke-width:2.1; stroke-linecap:round;
+  filter:drop-shadow(0 0 4px rgba(240,160,32,.5));
+  pointer-events:stroke; cursor:pointer;
+}
+.chip__wires path:hover{ stroke:#ff6a3d; stroke-width:3; }
+.chip__wires path.is-drag{
+  stroke:#4fc8ff; stroke-dasharray:5 4; pointer-events:none;
+  filter:drop-shadow(0 0 5px rgba(79,200,255,.6));
+}
+
+.wire__read{
+  font-size:7.5px; letter-spacing:.13em; color:#6d757d;
+  border-top:1px solid #0d0f11; padding-top:8px;
+}
+.wire__read b{ color:#f0a020; font-weight:600; }
+
+/* the patch bay now lives inside the rewire panel as a slim strip */
+.wire .bay{
+  margin:0; padding:9px 0 0; border-top:1px solid #0d0f11;
+  background:none; border-radius:0; box-shadow:none;
 }

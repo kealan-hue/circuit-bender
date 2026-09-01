@@ -1,16 +1,9 @@
-# MANGLER VS-1
+# CIRCUIT BENDER
 
 A browser app that takes your live camera and lets you break it in real time —
 tear it, delay it, feed it back on itself, sort its pixels, smear it like a
 dying VHS tape. Point it at yourself or the room and turn knobs until it looks
 wrong in an interesting way.
-
-**Why "MANGLER"** — that's literally what it does to the video signal. Not a
-filter (one fixed look you pick from a list) — a *mangler*: a chain of little
-machines that each corrupt the picture a bit, that you can turn on/off and mix
-together, so the same knob does something different depending what else is
-switched on. "Circuit-bender cam" was the working name; MANGLER is the name on
-the box.
 
 **Try it:** https://kealan-hue.github.io/mangler/ (needs a camera + HTTPS,
 so open it on your phone or a laptop with a webcam)
@@ -99,14 +92,52 @@ effect alone — that's the "unpredictable when combined" part.
     static/noise/dead pixels. POLARITY = normal, inverted, or solarized
     (part-inverted, the weird one).
 
+## REWIRE — the manual circuit bend
+
+The panel on the right is a fake sensor chip, **CBX-01**, with eight pins.
+Every pin is a real parameter of the signal path:
+
+| Pin | Function | What it does to the picture |
+|---|---|---|
+| **SUB** | substrate bias | exposure damage — lifted blacks, warm cast |
+| **RG** | reset gate | saturation and colour banding |
+| **OD** | output drain | R/G/B channel separation |
+| **HCK** | horizontal clock | line timing — torn/rolled rows |
+| **TG** | transfer gate | hue and phase |
+| **AB** | anti-bloom drain | bloom streaks and colour kill |
+| **VCK** | vertical clock | frame timing — time smear |
+| **VRF** | voltage reference | feedback |
+
+**Drag one pin onto another to short them together.** Tap a wire to cut it.
+You can run several bridges at once.
+
+A short is not a shortcut for turning two knobs up. It does three things a
+knob cannot:
+
+1. **It overrides the switch.** Both stages go live even if their module
+   rockers are off. Shorting two pins bypasses the thing meant to keep them
+   apart — that is what bending actually is.
+2. **It injects its own current.** The bridge carries a wandering signal whose
+   rate and phase come from *which two pins* you joined, so every pair has its
+   own character. Eight pins is 28 possible bridges.
+3. **It cross-couples the pair.** Each parameter drives the other, so they
+   feed back into one another instead of just sitting at their values.
+
+That is the part worth exploring — not the knobs.
+
 ## Patch bay — the "combine for chaos" part
 
-Four little wandering signals — **LFO A** (steady wobble), **LFO B**
-(slower/uneven wobble), **DRIFT** (very slow random wander), **SHOCK**
-(random sudden spikes). Tap one of these, then tap any knob, and that knob
-starts moving on its own instead of sitting still. Route SHOCK onto a knob
-that's already feeding another effect and you get the genuinely unpredictable
-combinations you asked for — two things fighting over one control.
+The slim strip under the chip. Four wandering signals — **LFO A** (steady
+wobble), **LFO B** (slower, uneven), **DRIFT** (very slow random wander),
+**SHOCK** (sudden random spikes) — plus **PULL** to disconnect.
+
+Tap a jack to arm it, then tap any knob. That knob now **moves on its own**,
+driven by that signal, instead of sitting where you left it. It is hands-free
+automation, not routing.
+
+Where REWIRE shorts two *effects* together, the patch bay makes a single
+*knob* move by itself. Arm SHOCK onto a knob that a bridge is already driving
+and the two fight over it.
 
 ## Everything else
 

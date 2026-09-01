@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   MANGLER — signal engine (WebGL2)
+   CIRCUIT BENDER — signal engine (WebGL2)
 
    INGEST → ring[head]        32-layer TEXTURE_2D_ARRAY, ONE texture unit
      ↓
