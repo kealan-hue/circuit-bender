@@ -738,5 +738,136 @@ body.is-patching .knob, body.is-patching .fader{ box-shadow:0 0 0 1px rgba(255,2
   .pin__name{ font-size:9px; }
   .slide__mark{ font-size:7.5px; }
   .bay__hint, .wire__head em, .wire__read{ font-size:9px; }
-  .ctl__label{ font-size:8.5px; }
+  .ctl__cap{ font-size:8.5px; }
+}
+
+/* ══ FRONT DOOR ═══════════════════════════════════════════════════════
+   What a phone sees before any swipe: the picture, which of the twelve
+   shorts is soldered in, two knobs, and the shutter. */
+.front{
+  display:flex; flex-direction:column; gap:10px;
+  padding-bottom:4px;
+}
+.front .screen{ margin:0; }
+
+.bendsel{
+  display:flex; align-items:center; justify-content:center; gap:14px;
+  margin-top:2px;
+}
+.bendsel__name{
+  font-size:15px; letter-spacing:.30em; font-weight:700;
+  color:#e9ecef; min-width:9.5em; text-align:center;
+  text-shadow:0 0 14px rgba(233,236,239,.20);
+}
+.bendsel__arrow{
+  width:46px; height:46px; flex:0 0 auto;
+  background:linear-gradient(180deg,#25292e,#171a1d);
+  border:1px solid #000; border-radius:4px; color:#aeb6bf;
+  font-size:20px; line-height:1; cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 2px 5px rgba(0,0,0,.55);
+}
+.bendsel__arrow:active{ background:linear-gradient(180deg,#171a1d,#25292e); }
+.bendsel__dots{ display:flex; justify-content:center; gap:6px; }
+.dot{
+  width:6px; height:6px; border-radius:50%;
+  background:#2a2f34; box-shadow:inset 0 0 2px #000;
+}
+.dot.on{
+  background:#f0a020;
+  box-shadow:0 0 7px rgba(240,160,32,.85);
+}
+
+.front__knobs{ display:flex; justify-content:center; gap:34px; margin-top:2px; }
+.ctl--big{ --d:84px; }
+.ctl--big .ctl__cap{ font-size:9px; letter-spacing:.2em; }
+
+.front__row{ display:flex; justify-content:center; gap:10px; }
+.fbtn{
+  flex:1 1 0; max-width:150px; min-height:52px;
+  background:linear-gradient(180deg,#24282d,#15181b);
+  border:1px solid #000; border-radius:4px; cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 2px 6px rgba(0,0,0,.55);
+}
+.fbtn b{ font-size:10px; letter-spacing:.22em; color:#c8ced5; font-weight:700; }
+.fbtn:active{ background:linear-gradient(180deg,#15181b,#24282d); }
+.fbtn--rec.on b{ color:#ff5a4d; }
+
+.front .big{ width:100%; max-width:none; min-height:86px; margin:2px 0 0; }
+
+.deep-handle{
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  background:none; border:0; cursor:pointer; padding:8px 0 2px;
+  color:#5e666e; font-size:8px; letter-spacing:.28em; font-weight:700;
+}
+.deep-handle i{
+  width:52px; height:4px; border-radius:2px; display:block;
+  background:linear-gradient(90deg,#31363c,#5a626b,#31363c);
+}
+
+/* ══ DEEP LAYER — the probe first, then the knobs it earned ═══════════ */
+.deep{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  height:80vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:0 12px 22px;
+  background:linear-gradient(180deg,#141619 0%,#0f1113 100%);
+  border-top:1px solid #000;
+  box-shadow:0 -14px 40px rgba(0,0,0,.75);
+  transform:translateY(101%);
+  transition:transform .32s cubic-bezier(.4,.0,.2,1);
+  visibility:hidden;
+}
+body.panel-open .deep{ transform:translateY(0); visibility:visible; }
+.deep-close{
+  position:sticky; top:0; z-index:2; width:100%;
+  padding:13px 0 11px; margin-bottom:6px;
+  background:linear-gradient(180deg,#191c1f,#141619);
+  border:0; border-bottom:1px solid #000; cursor:pointer;
+  color:#8b939c; font-size:9px; letter-spacing:.28em; font-weight:700;
+}
+/* the chip comes first down here — the short is found before the knob */
+.deep .wire{ order:-1; margin-bottom:12px; }
+.deep .transport{ margin-bottom:12px; }
+
+@media (prefers-reduced-motion: reduce){
+  .deep{ transition:none; }
+}
+
+/* ── the front door is one screenful, always ──────────────────────────
+   The shutter must be reachable with a thumb without scrolling, so the
+   picture takes whatever height is left rather than dictating it. */
+/* height comes from .device alone — setting it here too made the front a
+   full viewport BELOW the header, and the picture swallowed the overflow */
+.front{ justify-content:flex-start; }
+.front .screen{ flex:1 1 auto; min-height:120px; display:flex; }
+.front .screen__bezel{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
+.front .tube{ aspect-ratio:auto; flex:1 1 auto; min-height:0; max-height:none; }
+.front__knobs{ margin-top:0; }
+.front .big{ min-height:74px; }
+
+/* the wordmark must not wrap on a phone */
+.head__name{ white-space:nowrap; }
+@media (max-width:480px){
+  .head__name{ font-size:15px; letter-spacing:.18em; }
+  .head__sub{ font-size:6.5px; letter-spacing:.14em; }
+  .bendsel__name{ font-size:13px; letter-spacing:.22em; min-width:8.5em; }
+  .ctl--big{ --d:70px; }
+  .front__knobs{ gap:26px; }
+  .fbtn{ min-height:46px; }
+  .front .big{ min-height:62px; }
+  .device{ padding:8px 8px 10px; }
+}
+
+/* the device is the viewport; the front door fills whatever the header leaves */
+.device{ min-height:100svh; min-height:100dvh; display:flex; flex-direction:column; }
+.front{ flex:1 1 auto; min-height:0; }
+.deep .foot{ margin-top:14px; }
+
+/* the wordmark was running under the serial plate on a phone */
+@media (max-width:480px){
+  .head{ flex-wrap:wrap; row-gap:6px; }
+  .head__id{ flex:1 1 auto; min-width:0; }
+  .head__sub{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .head__plate{ flex:0 0 auto; font-size:7.5px; padding:4px 7px; }
+  .head__mark{ width:34px; }
+  .head__mark svg{ width:34px; height:34px; }
 }

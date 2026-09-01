@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CIRCUIT BENDER — bend your live camera signal in real time. Short the pins, turn the knobs, break the picture.">
 <title>CIRCUIT BENDER</title>
-<link rel="stylesheet" href="assets/css/panel.css?v=8">
+<link rel="stylesheet" href="assets/css/panel.css?v=13">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -30,9 +30,9 @@
   </header>
   <div class="etch" id="rule-a"></div>
 
-  <div class="top">
+  <!-- ══ front door — twelve shorts, two knobs, the shutter ══ -->
+  <section class="front" id="front">
 
-  <!-- ══ screen ══ -->
   <section class="screen">
     <div class="screen__bezel">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
@@ -53,20 +53,42 @@
     </div>
   </section>
 
-  <!-- ══ transport ══ -->
-  <section class="transport">
+    <!-- the twelve, by the pins they short -->
+    <div class="bendsel">
+      <button class="bendsel__arrow" id="bend-prev" type="button" aria-label="previous bend">&lsaquo;</button>
+      <b class="bendsel__name" id="bend-name">&mdash;</b>
+      <button class="bendsel__arrow" id="bend-next" type="button" aria-label="next bend">&rsaquo;</button>
+    </div>
+    <div class="bendsel__dots" id="bend-dots"></div>
+
+    <div class="front__knobs" id="front-knobs"></div>
+
+    <div class="front__row">
+      <button class="fbtn" id="b-shot" type="button"><b>PHOTO</b></button>
+      <button class="fbtn fbtn--rec" id="b-rec" type="button"><b>REC</b></button>
+      <button class="fbtn" id="b-cam" type="button"><b>CAM</b></button>
+    </div>
+
     <button class="big" id="b-bend" type="button">
       <span class="big__ring"></span>
       <b>BEND</b><em>hold</em>
     </button>
 
+    <button class="deep-handle" id="deep-handle" type="button">
+      <i></i><span>PANEL</span>
+    </button>
+  </section>
+
+  <!-- ══ deep layer — the probe, then the knobs it earned ══ -->
+  <div class="deep" id="deep">
+  <button class="deep-close" id="deep-close" type="button" aria-label="close panel">CLOSE PANEL</button>
+
+  <!-- ══ transport ══ -->
+  <section class="transport">
     <div class="transport__grid">
       <button class="pb pb--amber" id="b-scram" type="button"><b>SCRAMBLE</b><em>R</em></button>
       <button class="pb" id="b-hold"  type="button"><b>HOLD</b><em>F</em></button>
       <button class="pb pb--red" id="b-kill"  type="button"><b>KILL</b><em>X</em></button>
-      <button class="pb" id="b-shot"  type="button"><b>FRAME</b><em>C</em></button>
-      <button class="pb pb--rec" id="b-rec" type="button"><b>REC</b><em>V</em></button>
-      <button class="pb" id="b-cam"   type="button"><b>SENSOR</b><em>flip</em></button>
       <button class="pb" id="b-qual"  type="button"><b>MID</b><em>res</em></button>
     </div>
   </section>
@@ -98,8 +120,6 @@
     </div>
   </section>
 
-  </div><!-- /.top -->
-
   <div class="etch" id="rule-b"></div>
 
   <!-- ══ rack ══ -->
@@ -111,12 +131,13 @@
     <span class="foot__keys">SPACE bend · R scramble · F hold · C frame · V tape · X kill
       &nbsp;|&nbsp; shift-drag = fine · double-click = default · tap a number to type one</span>
   </footer>
+  </div><!-- /.deep -->
 </div>
 
-<script src="assets/js/sigil.js?v=8"></script>
-<script src="assets/js/ui.js?v=8"></script>
-<script src="assets/js/engine.js?v=8"></script>
-<script src="assets/js/app.js?v=8"></script>
+<script src="assets/js/sigil.js?v=13"></script>
+<script src="assets/js/ui.js?v=13"></script>
+<script src="assets/js/engine.js?v=13"></script>
+<script src="assets/js/app.js?v=13"></script>
 <script>document.getElementById('foot-ser').textContent = localStorage.getItem('circuitbender.serial')||'';</script>
 </body>
 </html>

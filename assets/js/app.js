@@ -71,6 +71,28 @@ const SOURCES = {
   drift: { label:'DRIFT', color:'#4fc8ff', fn: t => Math.sin(t*0.07) + Math.sin(t*0.113)*0.6 },
   shock: { label:'SHOCK', color:'#d8232a', fn: t => (Math.sin(t*13.3)>0.93 ? 1 : -0.15) }
 };
+/* ── THE TWELVE ────────────────────────────────────────────────────────
+   Bends already found and soldered down. That is what a finished bent
+   instrument is: someone probed, kept what worked, and wired it in. Each is
+   labelled by the two pins it shorts, so the front door and the chip behind
+   the swipe speak one language and using one teaches the other.
+   No descriptions anywhere. You find out by pointing it at your own face. */
+const VOICE = { scan:0.42, con:0.30, sat:0.50, tear:0.05, dither:0.14, noise:0.04 };
+const BENDS = [
+  { a:'BITS',  b:'COLOR', p:{ route:0.30, bitSwap:0.16 } },
+  { a:'CLOCK', b:'TIME',  p:{ clock:0.44, slit:0.28, slitMode:1, route:0.14 } },
+  { a:'BITS',  b:'BUS',   p:{ bitSwap:0.52, bus:0.40 } },
+  { a:'POWER', b:'LOOP',  p:{ starve:0.55, feed:0.34, orbit:0.56, noise:0.10 } },
+  { a:'ADDR',  b:'TIME',  p:{ addr:0.42, slit:0.34, slitMode:3 } },
+  { a:'BUS',   b:'COLOR', p:{ bus:0.50, route:0.62 } },
+  { a:'ADDR',  b:'CLOCK', p:{ addr:0.50, clock:0.52 } },
+  { a:'BITS',  b:'TIME',  p:{ bitSwap:0.34, ctime:0.40, route:0.22 } },
+  { a:'POWER', b:'COLOR', p:{ starve:0.46, route:0.44, sat:0.30, con:0.20 } },
+  { a:'BUS',   b:'LOOP',  p:{ bus:0.44, feed:0.42, droste:0.24 } },
+  { a:'CLOCK', b:'POWER', p:{ clock:0.38, starve:0.50, headsw:0.30, wave:0.26 } },
+  { a:'ADDR',  b:'LOOP',  p:{ addr:0.36, feed:0.46, orbit:0.42, mosh:0.30 } }
+];
+
 const PATCH = {};                      /* param → { src, depth } */
 let armed = null;
 
@@ -87,7 +109,7 @@ const PINS = [
   { side:'l', name:'ADDR',  long:'address bus',  p:'addr',    k:0.70, was:'wrong pixel fetched' },
   { side:'l', name:'CLOCK', long:'row clock',    p:'clock',   k:0.68, was:'rows misread' },
   { side:'r', name:'POWER', long:'supply rail',  p:'starve',  k:0.72, was:'chip half-fails' },
-  { side:'r', name:'COLOR', long:'chroma path',  p:'bias',    k:0.88, was:'hue swings' },
+  { side:'r', name:'COLOR', long:'chroma path',  p:'route',   k:0.80, was:'two-tone palette' },
   { side:'r', name:'TIME',  long:'frame store',  p:'slit',    k:0.70, was:'pixels from the past' },
   { side:'r', name:'LOOP',  long:'output feed',  p:'feed',    k:0.58, was:'image eats itself' }
 ];
@@ -100,7 +122,9 @@ for(const st in STAGE) STAGE[st].forEach(pr => OWNER[pr] = st);
 
 const state = {
   bend:0, bendTarget:0, hold:false, facing:'user',
-  ntscPhase:0, bitMask:[0,0,0], burst:0, frame:0
+  ntscPhase:0, bitMask:[0,0,0], burst:0, frame:0,
+  pick:0, intensity:0.5, colour:0.5,
+  surge:[]                              /* extra shorts thrown while BEND is held */
 };
 
 /* ══ engine boot ═══════════════════════════════════════════ */
@@ -226,6 +250,34 @@ function sizeTo(vw, vh){
   engine.resize(w & ~1, h & ~1);
 }
 
+/* ── selecting a bend writes V directly. The deep layer then shows exactly
+      which knobs that short moved, so the front door teaches the chip. ── */
+function applyBend(i, silent){
+  state.pick = ((i % BENDS.length) + BENDS.length) % BENDS.length;
+  const b = BENDS[state.pick];
+  Object.assign(V, NEUTRAL, VOICE, b.p);
+  for(const s in STAGE) ON[s] = true;
+  WIRES.length = 0;
+  WIRES.push({ a: PINS.findIndex(p => p.name === b.a),
+               b: PINS.findIndex(p => p.name === b.b) });
+  for(const k in V){ const w = widgets[k]; if(w) w.set(V[k], false); }
+  for(const st in STAGE){
+    const r = widgets['@'+st]; if(r) r.set(true, false);
+    const el = document.querySelector('[data-mod="'+st+'"]');
+    if(el) el.classList.remove('off');
+  }
+  if(buildChip.repaint) buildChip.repaint();
+  paintFront();
+  if(!silent) crt('SHORT ' + b.a + '\u2013' + b.b);
+}
+
+function paintFront(){
+  const b = BENDS[state.pick];
+  const n = $('#bend-name'); if(n) n.textContent = b.a + '\u2013' + b.b;
+  const d = $('#bend-dots');
+  if(d) [...d.children].forEach((el,i) => el.classList.toggle('on', i === state.pick));
+}
+
 /* ── effective params, after stage gating and modulation ──── */
 const P = {};
 function build(t){
@@ -253,29 +305,33 @@ function build(t){
     P[B.p] = clamp(Math.max(vB, cur * B.k) + vA * 0.28, 0, 1);
   }
 
-  /* BEND: shove the whole chain somewhere extreme for as long as it is held.
-     it does not set values, it BIASES them — so it lands somewhere different
-     depending on where the panel already was */
-  const b = state.bend;
-  if(b > 0.001){
-    P.tear   = clamp(P.tear   + b*0.75, 0, 1);
-    P.warp   = clamp(P.warp   + b*0.55, 0, 1);
-    P.mosh   = clamp(P.mosh   + b*0.62, 0, 1);
-    P.feed   = clamp(P.feed   + b*0.50, 0, 1);
-    P.slit   = clamp(P.slit   + b*0.38, 0, 1);
-    P.ctime  = clamp(P.ctime  + b*0.30, 0, 1);
-    P.sort   = clamp(P.sort   + b*0.55, 0, 1);
-    P.ntsc   = clamp(P.ntsc   + b*0.45, 0, 1);
-    P.headsw = clamp(P.headsw + b*0.40, 0, 1);
-    P.bitAmt = clamp(P.bitAmt + b*0.35, 0, 1);
-    P.post   = clamp(P.post   + b*0.30, 0, 1);
-    P.noise  = clamp(P.noise  + b*0.22, 0, 1);
-    P.gateLo = clamp(P.gateLo - b*0.22, 0, 1);
-    P.gain   = clamp(P.gain   + b*0.18, 0, 1);
+  /* ── front-door INTENSITY scales only what THIS bend does, never the
+        instrument's own voice, so turning it down leaves a picture rather
+        than a clean camera feed ── */
+  const bp = BENDS[state.pick].p;
+  const gainK = 0.35 + state.intensity * 1.45;
+  for(const k in bp){
+    if(k === 'slitMode') continue;
+    P[k] = clamp(P[k] * gainK, 0, 1);
+  }
+  /* COLOUR moves where the routing lands — the difference between your
+     teal frame and your magenta one */
+  P.route = clamp(P.route + (state.colour - 0.5) * 0.55, 0, 1);
+  P.bias  = clamp(P.bias  + (state.colour - 0.5) * 0.30, 0, 1);
+
+  /* ── SURGE — BEND throws extra shorts on top of the ones already there,
+        exactly as a probe wire does, and they fall away when released ── */
+  for(let i=0;i<state.surge.length;i++){
+    const sg = state.surge[i];
+    const A = PINS[sg.a], B = PINS[sg.b];
+    const cur = state.bend * (0.55 + 0.45 * Math.sin(t * sg.rate + sg.ph));
+    P[A.p] = clamp(Math.max(P[A.p], cur * A.k), 0, 1);
+    P[B.p] = clamp(Math.max(P[B.p], cur * B.k), 0, 1);
   }
 
+
   P.time = t;
-  P.bend = b;
+  P.bend = state.bend;
   P.frame = state.frame;
   P.ntscPhase = state.ntscPhase;
   P.bitMask = state.bitMask;
@@ -414,6 +470,27 @@ const RACK = [
 ];
 
 const widgets = {};
+/* ══ FRONT DOOR ════════════════════════════════════════════
+   Twelve shorts already soldered down, two knobs, and the shutter. No
+   descriptions: you find out what BITS-COLOR does by pointing it at your
+   own face. Everything else is behind the swipe. */
+function buildFront(){
+  const dots = $('#bend-dots');
+  if(dots) BENDS.forEach(() => dots.append(UI.el('i', 'dot')));
+
+  const wrap = $('#front-knobs');
+  if(!wrap) return;
+  const mk = (id, label, get, set) => {
+    const w = UI.knob({ label, value:get(), lo:0, hi:1, def:0.5, detent:[0.5],
+                        scale:100, dp:0, onchange:set });
+    w.el.classList.add('ctl--big');
+    wrap.append(w.el);
+    return w;
+  };
+  widgets['@int'] = mk('int', 'INTENSITY', () => state.intensity, v => { state.intensity = v; });
+  widgets['@col'] = mk('col', 'COLOUR',    () => state.colour,    v => { state.colour = v; });
+}
+
 /* ══ REWIRE — the chip, the wires, and the dragging ═════════ */
 const pinEl = [];
 function buildChip(){
@@ -703,6 +780,11 @@ function tick(){
   $('#fps').textContent = String(fps).padStart(2,'0');
 }
 
+function openDeep(on){
+  document.body.classList.toggle('panel-open', on);
+  crt(on ? 'PANEL OPEN' : 'PANEL CLOSED');
+}
+
 /* ══ transport ═════════════════════════════════════════════ */
 function scramble(hard){
   const skip = { mix:1, gain:1, bias:1 };
@@ -836,10 +918,52 @@ function toggleRec(){
 /* ══ wiring ════════════════════════════════════════════════ */
 function wire(){
   const bend = $('#b-bend');
-  const down = () => { state.bendTarget = 1; bend.classList.add('on'); };
-  const up   = () => { state.bendTarget = 0; bend.classList.remove('on'); };
+  const down = () => {
+    state.bendTarget = 1; bend.classList.add('on');
+    /* pick fresh pin pairs each press, so a surge is never the same twice —
+       this is the probe wire, not a preset */
+    state.surge = [];
+    const n = 2 + Math.floor(Math.random()*2);
+    for(let i=0;i<n;i++){
+      const a = Math.floor(Math.random()*PINS.length);
+      let b = Math.floor(Math.random()*PINS.length);
+      if(b === a) b = (b + 1 + Math.floor(Math.random()*(PINS.length-1))) % PINS.length;
+      state.surge.push({ a, b, rate: 0.8 + Math.random()*7, ph: Math.random()*6.28 });
+    }
+    crt('SURGE  ' + state.surge.map(g => PINS[g.a].name + '\u2013' + PINS[g.b].name).join('  '));
+  };
+  const up = () => {
+    state.bendTarget = 0; bend.classList.remove('on');
+    setTimeout(() => { if(state.bendTarget === 0) state.surge = []; }, 900);
+  };
   bend.addEventListener('pointerdown', e => { e.preventDefault(); down(); });
   ['pointerup','pointercancel','pointerleave'].forEach(ev => bend.addEventListener(ev, up));
+
+  const step = d => applyBend(state.pick + d);
+  const prev = $('#bend-prev'), next = $('#bend-next');
+  if(prev) prev.addEventListener('click', () => step(-1));
+  if(next) next.addEventListener('click', () => step(1));
+
+  /* swipe sideways across the picture to change bend, up to open the panel */
+  const front = $('#front');
+  if(front){
+    let sx=0, sy=0, moved=false;
+    front.addEventListener('pointerdown', e => {
+      if(e.target.closest('.ctl, .fbtn, .big')) return;
+      sx = e.clientX; sy = e.clientY; moved = false;
+    });
+    front.addEventListener('pointerup', e => {
+      if(!sx && !sy) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+      else if(dy < -60 && Math.abs(dy) > Math.abs(dx)) openDeep(true);
+      sx = sy = 0;
+    });
+  }
+  const handle = $('#deep-handle');
+  if(handle) handle.addEventListener('click', () => openDeep(!document.body.classList.contains('panel-open')));
+  const closeBtn = $('#deep-close');
+  if(closeBtn) closeBtn.addEventListener('click', () => openDeep(false));
 
   $('#b-scram').addEventListener('click', e => scramble(true));
   $('#b-kill').addEventListener('click', resetAll);
@@ -896,6 +1020,8 @@ function boot(){
   $('#b-bend').append(bs);
   buildRack();
   buildChip();
+  buildFront();
+  applyBend(0, true);
   buildPatchBay();
   $('#meters').append(mLevel, mSort, mBend);
   wire();
