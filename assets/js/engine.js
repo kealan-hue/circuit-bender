@@ -32,6 +32,8 @@ precision highp float;
 precision highp sampler2DArray;
 in vec2 vUv; out vec4 frag;
 const float TAU = 6.28318530718;
+const float PI  = 3.14159265359;
+const float PI_2 = 1.57079632679;
 float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
 float hash(vec2 p){ return fract(sin(dot(p, vec2(41.317,289.113)))*43758.5453); }
 float vnoise(vec2 p){
@@ -533,6 +535,7 @@ uniform sampler2D uTex, uRaw;
 uniform vec2  uRes;
 uniform float uTime, uBend;
 uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias, uSat, uCon, uRoute;
+uniform float uDuo, uAxis;
 uniform int   uInv;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
@@ -558,6 +561,34 @@ void main(){
 
   ivec2 fp = ivec2(gl_FragCoord.xy);
   float bd = bayer(fp) - 0.5;
+
+  /* ── DUO — the chroma demodulator failing while luma passes through clean.
+        Luminance is taken out first and put back untouched, so the picture
+        stays exactly as readable as it was; only the colour is rewritten.
+        The chroma ANGLE is then folded onto a two-pole axis, which is why a
+        photograph resolves into two far-apart hues with its gradients and
+        texture intact — instead of the flat poster-paint blocks you get from
+        permuting whole channels, which moves brightness around as well. ── */
+  if(uDuo > 0.002){
+    float Y = dot(col, vec3(0.299, 0.587, 0.114));
+    float U = 0.492 * (col.b - Y);
+    float V = 0.877 * (col.r - Y);
+    float ang = atan(V, U);
+    float mag = length(vec2(U, V));
+    float pole = uAxis * TAU;
+    /* Pull each hue toward whichever of TWO OPPOSITE poles it is nearer.
+       Folding into a half turn instead collapses opposite hues onto the same
+       pole, which is why the whole frame came out one colour — the two-tone
+       only appears if the far half of the wheel keeps its own pole. */
+    float rel = atan(sin(ang - pole), cos(ang - pole));      /* wrap to ±PI */
+    float target = (abs(rel) < PI_2) ? 0.0 : (rel > 0.0 ? PI : -PI);
+    float folded = pole + mix(rel, target, uDuo);
+    mag *= 1.0 + uDuo * 0.85;
+    U = mag * cos(folded);
+    V = mag * sin(folded);
+    vec3 back = vec3(Y + 1.140*V, Y - 0.395*U - 0.581*V, Y + 2.032*U);
+    col = clamp(back, 0.0, 1.0);
+  }
 
   /* ── ROUTE — walk the colour channels around onto each other's wires.
         A hue rotation moves every colour by the same angle, so the original
@@ -949,6 +980,8 @@ function Engine(canvas){
       gl.uniform1f(q.uSat, p.sat);
       gl.uniform1f(q.uCon, p.con);
       gl.uniform1f(q.uRoute, p.route);
+      gl.uniform1f(q.uDuo, p.duo);
+      gl.uniform1f(q.uAxis, p.axis);
       gl.uniform1f(q.uHalf, p.half);
       gl.uniform1f(q.uNoise, p.noise);
       gl.uniform1f(q.uMix, p.mix);

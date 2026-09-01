@@ -31,7 +31,7 @@ const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
    fringe. Geometry-destroying stages (sort, mosh, warp, slit, fold) start at
    zero; they are where you go, not where you start. */
 const V = {
-  gain:0.5, bias:0.5, route:0.30, sat:0.55, con:0.30, mix:1,
+  gain:0.5, bias:0.5, route:0, duo:0.62, axis:0.34, sat:0.42, con:0.26, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
   tear:0.05, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
@@ -43,7 +43,7 @@ const V = {
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
-  bias:0.5, route:0, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0
+  bias:0.5, route:0, duo:0, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0
 });
 const DEF = NEUTRAL;
 
@@ -59,7 +59,7 @@ const STAGE = {
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   sort:   ['sort'],
-  out:    ['post','dither','half','scan','noise','sat','con','route']
+  out:    ['post','dither','half','scan','noise','sat','con','route','duo']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
 
@@ -77,20 +77,21 @@ const SOURCES = {
    labelled by the two pins it shorts, so the front door and the chip behind
    the swipe speak one language and using one teaches the other.
    No descriptions anywhere. You find out by pointing it at your own face. */
-const VOICE = { scan:0.42, con:0.30, sat:0.50, tear:0.05, dither:0.14, noise:0.04 };
+const VOICE = { scan:0.42, con:0.26, sat:0.42, tear:0.05, dither:0.14, noise:0.04,
+                duo:0.62, axis:0.34 };
 const BENDS = [
-  { a:'BITS',  b:'COLOR', p:{ route:0.30, bitSwap:0.16 } },
-  { a:'CLOCK', b:'TIME',  p:{ clock:0.44, slit:0.28, slitMode:1, route:0.14 } },
-  { a:'BITS',  b:'BUS',   p:{ bitSwap:0.52, bus:0.40 } },
-  { a:'POWER', b:'LOOP',  p:{ starve:0.55, feed:0.34, orbit:0.56, noise:0.10 } },
-  { a:'ADDR',  b:'TIME',  p:{ addr:0.42, slit:0.34, slitMode:3 } },
-  { a:'BUS',   b:'COLOR', p:{ bus:0.50, route:0.62 } },
-  { a:'ADDR',  b:'CLOCK', p:{ addr:0.50, clock:0.52 } },
-  { a:'BITS',  b:'TIME',  p:{ bitSwap:0.34, ctime:0.40, route:0.22 } },
-  { a:'POWER', b:'COLOR', p:{ starve:0.46, route:0.44, sat:0.30, con:0.20 } },
-  { a:'BUS',   b:'LOOP',  p:{ bus:0.44, feed:0.42, droste:0.24 } },
-  { a:'CLOCK', b:'POWER', p:{ clock:0.38, starve:0.50, headsw:0.30, wave:0.26 } },
-  { a:'ADDR',  b:'LOOP',  p:{ addr:0.36, feed:0.46, orbit:0.42, mosh:0.30 } }
+  { a:'BITS',  b:'COLOR', p:{ axis:0.34, bitSwap:0.14 } },
+  { a:'CLOCK', b:'TIME',  p:{ axis:0.50, clock:0.34, slit:0.22, slitMode:1 } },
+  { a:'BITS',  b:'BUS',   p:{ axis:0.08, bitSwap:0.22, bus:0.14 } },
+  { a:'POWER', b:'LOOP',  p:{ axis:0.72, starve:0.40, feed:0.28, orbit:0.56 } },
+  { a:'ADDR',  b:'TIME',  p:{ axis:0.25, addr:0.30, slit:0.26, slitMode:3 } },
+  { a:'BUS',   b:'COLOR', p:{ axis:0.58, bus:0.22 } },
+  { a:'ADDR',  b:'CLOCK', p:{ axis:0.00, addr:0.32, clock:0.32 } },
+  { a:'BITS',  b:'TIME',  p:{ axis:0.42, bitSwap:0.26, ctime:0.30 } },
+  { a:'POWER', b:'COLOR', p:{ axis:0.83, starve:0.34, sat:0.30, con:0.20 } },
+  { a:'BUS',   b:'LOOP',  p:{ axis:0.17, bus:0.16, feed:0.30, droste:0.18 } },
+  { a:'CLOCK', b:'POWER', p:{ axis:0.92, clock:0.34, starve:0.44, headsw:0.30, wave:0.26 } },
+  { a:'ADDR',  b:'LOOP',  p:{ axis:0.66, addr:0.26, feed:0.30, orbit:0.42, mosh:0.22 } }
 ];
 
 const PATCH = {};                      /* param → { src, depth } */
@@ -311,13 +312,12 @@ function build(t){
   const bp = BENDS[state.pick].p;
   const gainK = 0.35 + state.intensity * 1.45;
   for(const k in bp){
-    if(k === 'slitMode') continue;
+    if(k === 'slitMode' || k === 'axis') continue;
     P[k] = clamp(P[k] * gainK, 0, 1);
   }
   /* COLOUR moves where the routing lands — the difference between your
      teal frame and your magenta one */
-  P.route = clamp(P.route + (state.colour - 0.5) * 0.55, 0, 1);
-  P.bias  = clamp(P.bias  + (state.colour - 0.5) * 0.30, 0, 1);
+  P.axis = (P.axis + (state.colour - 0.5) * 0.5 + 1) % 1;
 
   /* ── SURGE — BEND throws extra shorts on top of the ones already there,
         exactly as a probe wire does, and they fall away when released ── */
@@ -396,6 +396,8 @@ const RACK = [
   { id:'src', name:'SOURCE', fixed:true, ctl:[
     K('gain','GAIN',   { def:0.5, detent:[0.5] }),
     K('bias','TINT',   { def:0.5, detent:[0.5] }),
+    K('duo','DUOTONE',{ def:0 }),
+    K('axis','AXIS',   { def:0.34 }),
     K('route','ROUTE', { def:0 }),
     K('sat','COLOUR',  { def:0 }),
     K('con','CONTRAST',{ def:0 }),
@@ -1078,7 +1080,8 @@ function step(n){
            bend: +state.bend.toFixed(3) };
 }
 
-window.CB = { selftest, step, V, DEF, ON, PATCH, STAGE, PINS, WIRES, widgets, scramble, resetAll,
+window.CB = { selftest, step, V, DEF, ON, PATCH, STAGE, PINS, WIRES, BENDS, VOICE, applyBend,
+              widgets, scramble, resetAll, state,
                    get engine(){ return engine; }, get params(){ return P; } };
 
 if(document.readyState === 'loading') addEventListener('DOMContentLoaded', boot);
