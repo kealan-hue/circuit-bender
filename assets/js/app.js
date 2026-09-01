@@ -34,6 +34,7 @@ const V = {
   gain:0.5, bias:0.5, route:0, duo:0.62, axis:0.34, sat:0.42, con:0.26, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
   tear:0.05, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
+  water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   addr:0, clock:0, bitSwap:0, bus:0, starve:0,
@@ -43,17 +44,20 @@ const V = {
   w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
+  streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0,
   post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
 };
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
   bias:0.5, route:0, duo:0, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0,
+  water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
   w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
-  cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5
+  cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
+  streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0
 });
 const DEF = NEUTRAL;
 
@@ -69,8 +73,10 @@ const STAGE = {
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll'],
-  redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
+  beam:   ['water','waterBleed','scope','scopeLines','scopeGlow'],
   sort:   ['sort'],
+  redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
+  film:   ['s8','s8Dust','s8Burn','streak','streakAngle','over','overMode'],
   out:    ['post','dither','half','scan','noise','sat','con','route','duo']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
@@ -479,6 +485,13 @@ const RACK = [
     K('w3dYaw',     'YAW',     { def:0.5, detent:[0.5] }),
     K('w3dRoll',    'ROLL',    { def:0.5, detent:[0.5] })
   ]},
+  { id:'beam', name:'BEAM', note:'resynthesis', wide:true, ctl:[
+    K('water',      'WATERCOLOR', { def:0 }),
+    K('waterBleed', 'BLEED',      { def:0.5 }),
+    K('scope',      'SCOPE',      { def:0 }),
+    K('scopeLines', 'LINES',      { def:0.5 }),
+    K('scopeGlow',  'GLOW',       { def:0.5 })
+  ]},
   { id:'sort', name:'SORT', note:'span, not threshold', wide:true, ctl:[
     F('sort','PASSES',  { def:0 }),
     K('gateLo','GATE ↓',{ def:0.25 }),
@@ -499,6 +512,15 @@ const RACK = [
     K('mask',      'MASK',     { def:0 }),
     K('maskSize',  'M SIZE',   { def:0.5 }),
     K('maskSpeed', 'M SPEED',  { def:0.5 })
+  ]},
+  { id:'film', name:'FILM', note:'optics and stock', wide:true, ctl:[
+    K('s8',         'SUPER 8',    { def:0 }),
+    K('s8Dust',     'DUST',       { def:0.5 }),
+    K('s8Burn',     'BURN',       { def:0.5 }),
+    K('streak',     'STREAK',     { def:0 }),
+    K('streakAngle','S ANGLE',    { def:0 }),
+    K('over',       'OVERLAY',    { def:0 }),
+    S('overMode',   'BLEND',      ['SCREEN','MULT','DIFF','ADD'])
   ]},
   { id:'out', name:'OUTPUT', wide:true, ctl:[
     K('post','QUANT',  { def:0 }),
@@ -1083,14 +1105,18 @@ function selftest(passes){
   const keep = JSON.parse(JSON.stringify(V));
   const keepOn = Object.assign({}, ON);
   for(const k in STAGE) ON[k] = true;
-  Object.assign(V, {
-    slit:.7, ctime:.5, echo:.5, delayMix:.5, tear:.6, warp:.6, kal:.4,
-    tile:.5, split:.5, stretch:.5, w3d:.5,
-    cga:.5, cgaPal:0, ascii:.5, asciiTint:.5, key:.5, keyHue:.33, keyTol:.3, mask:.5, maskSize:.5, maskSpeed:.5,
-    rutt:.5, mosh:.6, feed:.5, droste:.4, headsw:.5, wave:.5, chromaLoss:.4,
-    ntsc:.8, ghost:.4, smear:.5, bitAmt:.5, sort:.7, post:.5, dither:.6,
-    half:.4, scan:.4, noise:.3
-  });
+  const skipModes = { slitMode:1, sortKey:1, sortAxis:1, sortOrder:1, sortSpan:1, inv:1, cgaPal:1, overMode:1 };
+  const midParams = { axis:0.5, keyHue:0.33, gateLo:0.25, gateHi:0.85 };
+  for(const k in V){
+    if(skipModes[k]) continue;
+    if(midParams[k] !== undefined){
+      V[k] = midParams[k];
+    } else if(/Angle$|Hue$/i.test(k)){
+      V[k] = 0.5;
+    } else {
+      V[k] = 0.6;
+    }
+  }
   const gl = engine.gl;
   /* gl.finish() does not reliably drain the pipe on macOS/ANGLE — a 1px
      readPixels does, so the number below is real GPU work, not queue depth */

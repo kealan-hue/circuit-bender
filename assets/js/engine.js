@@ -83,6 +83,8 @@ uniform float uWarp;
 uniform float uSlit, uCTime, uEcho;
 uniform int   uSlitMode;
 uniform float uKal, uRutt, uRuttLines;
+uniform float uScope, uScopeLines, uScopeGlow;
+uniform float uWater, uWaterBleed;
 uniform float uDelay, uDelayMix;
 uniform float uMosh;
 uniform float uFeed, uOrbit, uDroste;
@@ -336,6 +338,27 @@ void main(){
     }
   }
 
+  /* ── OSCILLOSCOPE — P7 phosphor vector scanline resynthesis ── */
+  if(uScope > 0.002){
+    float nTraces = 8.0 + floor(uScopeLines * 56.0);
+    float sp = 1.0 / nTraces;
+    float curIdx = floor(uv.y * nTraces);
+    vec3 scopeCol = vec3(0.0);
+    float glowW = 1.0 + uScopeGlow * 3.5;
+    for(int k = -1; k <= 1; k++){
+      float tIdx = curIdx + float(k);
+      if(tIdx < 0.0 || tIdx >= nTraces) continue;
+      float baseY = (tIdx + 0.5) * sp;
+      float bLuma = luma(ringAt(vec2(uv.x, baseY), 0.0));
+      float beamY = baseY + (bLuma - 0.5) * sp * 1.8;
+      float dy = abs(uv.y - beamY) * uRes.y;
+      float beam = exp(-0.5 * (dy * dy) / (glowW * glowW));
+      vec3 p7 = mix(vec3(0.08, 0.85, 0.22), vec3(0.65, 0.90, 1.0), smoothstep(0.45, 0.95, bLuma));
+      scopeCol += p7 * beam * (0.6 + 0.8 * bLuma);
+    }
+    col = mix(col, clamp(scopeCol, 0.0, 1.0), uScope);
+  }
+
   /* ── Δ FRAME — ghost trail, then hard replacement ── */
   if(uDelayMix > 0.002){
     float tap = 1.0 + uDelay * (uRingN - 4.0);
@@ -388,6 +411,30 @@ void main(){
     carried += dct * rnd.z * (1.0 - rnd.x) * uMosh * 0.16;
 
     col = mix(carried, col, max(0.10, smoothstep(thr*0.45, thr, df)));
+  }
+
+  /* ── WATERCOLOR — pigment advection, tonal washes, edge pooling ── */
+  if(uWater > 0.002){
+    vec2 px = 1.0 / uRes;
+    float lR = luma(texture(uPrev, uv + vec2(px.x * 2.5, 0.0)).rgb);
+    float lL = luma(texture(uPrev, uv - vec2(px.x * 2.5, 0.0)).rgb);
+    float lU = luma(texture(uPrev, uv + vec2(0.0, px.y * 2.5)).rgb);
+    float lD = luma(texture(uPrev, uv - vec2(0.0, px.y * 2.5)).rgb);
+    vec2 grad = vec2(lR - lL, lU - lD);
+    float gradLen = length(grad);
+
+    float bleed = 2.0 + uWaterBleed * 18.0;
+    vec2 advUv = clamp(uv - grad * bleed * px, 0.0, 1.0);
+    vec3 washed = texture(uPrev, advUv).rgb;
+    washed = mix(col, washed, 0.55 + 0.35 * uWater);
+
+    vec3 bands = floor(washed * 4.0 + 0.5) / 4.0;
+    washed = mix(washed, bands, 0.55 * uWater);
+
+    float edgePool = smoothstep(0.04, 0.28, gradLen * (1.0 + uWaterBleed * 2.0));
+    washed *= (1.0 - edgePool * 0.48 * uWater);
+
+    col = mix(col, clamp(washed, 0.0, 1.0), uWater);
   }
 
   /* ── REGEN — video feedback, orbit + hue precession, optional droste.
@@ -618,6 +665,9 @@ uniform float uTime, uBend, uHead, uRingN;
 uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias, uSat, uCon, uRoute;
 uniform float uDuo, uAxis;
 uniform float uCga, uCgaPal, uAscii, uAsciiTint, uKey, uKeyHue, uKeyTol, uMask, uMaskSize, uMaskSpeed;
+uniform float uStreak, uStreakAngle;
+uniform float uS8, uS8Dust, uS8Burn;
+uniform float uOver, uOverMode;
 uniform int   uInv;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
@@ -808,35 +858,31 @@ void main(){
     col = float(isPx) * fg;
   }
 
-  /* ── CHROMAKEY — YUV chroma key with Vlahos despill and ring frame replacement ── */
+  /* ── CHROMAKEY — Hue-selective key with fringe despill and ring frame replacement ── */
   if(uKey > 0.002){
-    float keyY = dot(col, vec3(0.299, 0.587, 0.114));
-    float keyU = 0.492 * (col.b - keyY);
-    float keyV = 0.877 * (col.r - keyY);
-    float keyAng = atan(keyV, keyU);
-    float keyMag = length(vec2(keyU, keyV));
+    vec2 chroma = vec2(col.r - 0.5 * (col.g + col.b), (col.g - col.b) * 0.8660254);
+    float pixelHue = fract(atan(chroma.y, chroma.x) / TAU);
+    float dHue = fract(pixelHue - uKeyHue + 0.5) - 0.5;
+    float dAng = abs(dHue) * TAU;
 
-    float targetAng = uKeyHue * TAU - PI;
-    float dAng = abs(atan(sin(keyAng - targetAng), cos(keyAng - targetAng)));
-    float tol = mix(0.15, 1.25, uKeyTol);
-    float softness = tol * 0.45;
-    float satWeight = smoothstep(0.02, 0.09, keyMag);
+    float maxC = max(col.r, max(col.g, col.b));
+    float minC = min(col.r, min(col.g, col.b));
+    float satWeight = smoothstep(0.04, 0.16, maxC - minC);
+
+    float tol = mix(0.12, 1.10, uKeyTol);
+    float softness = max(0.02, tol * 0.40);
     float matte = (1.0 - smoothstep(tol - softness, tol + softness, dAng)) * satWeight * uKey;
 
-    /* Vlahos despill in fringe */
-    float fringe = smoothstep(tol * 1.6, tol * 0.4, dAng) * satWeight * uKey;
-    float rProj = keyY + 1.140 * sin(targetAng);
-    float gProj = keyY - 0.395 * cos(targetAng) - 0.581 * sin(targetAng);
-    float bProj = keyY + 2.032 * cos(targetAng);
-    if(gProj >= rProj && gProj >= bProj){
-      float avgRB = (col.r + col.b) * 0.5;
-      col.g = mix(col.g, min(col.g, avgRB), fringe);
-    } else if(bProj >= rProj && bProj >= gProj){
-      float avgRG = (col.r + col.g) * 0.5;
-      col.b = mix(col.b, min(col.b, avgRG), fringe);
-    } else {
-      float avgGB = (col.g + col.b) * 0.5;
-      col.r = mix(col.r, min(col.r, avgGB), fringe);
+    /* Despill in fringe */
+    float fringe = (1.0 - smoothstep(tol * 0.5, tol * 1.6, dAng)) * satWeight * uKey;
+    if(fringe > 0.001){
+      if(uKeyHue >= 0.17 && uKeyHue < 0.50){
+        col.g = mix(col.g, min(col.g, (col.r + col.b) * 0.5), fringe);
+      } else if(uKeyHue >= 0.50 && uKeyHue < 0.83){
+        col.b = mix(col.b, min(col.b, (col.r + col.g) * 0.5), fringe);
+      } else {
+        col.r = mix(col.r, min(col.r, (col.g + col.b) * 0.5), fringe);
+      }
     }
 
     float pastLayer = mod(uHead - 14.0 + uRingN * 4.0, uRingN);
@@ -860,6 +906,29 @@ void main(){
 
   if(uInv == 1) col = 1.0 - col;
   else if(uInv == 2) col = abs(1.0 - 2.0*col);
+
+  /* ── LIGHTSTREAK — anamorphic optical flare ── */
+  if(uStreak > 0.002){
+    float streakAng = uStreakAngle * PI;
+    vec2 streakDir = vec2(cos(streakAng), sin(streakAng)) / uRes;
+    vec3 streakAcc = vec3(0.0);
+    float totalW = 0.0;
+    float lumaThr = 0.62;
+    for(int i = -24; i <= 24; i++){
+      if(i == 0) continue;
+      float fi = float(i);
+      float dist = abs(fi);
+      float w = exp(-dist * 0.11);
+      vec2 tapUv = clamp(cl + streakDir * fi * 3.5, 0.0, 1.0);
+      vec3 tapCol = texture(uTex, tapUv).rgb;
+      float tapL = luma(tapCol);
+      float excess = max(0.0, tapL - lumaThr) / (1.0 - lumaThr);
+      streakAcc += tapCol * excess * w;
+      totalW += w;
+    }
+    vec3 flare = (streakAcc / max(1e-4, totalW)) * vec3(0.4, 0.7, 1.3) * 3.8;
+    col += flare * uStreak;
+  }
 
   if(uScan > 0.002){
     float sl = 0.5 + 0.5*sin(cl.y*uRes.y*3.14159);
@@ -895,6 +964,61 @@ void main(){
       float inBar = step(xs, cl.x) * step(cl.x, min(1.0, xs+xw));
       col = mix(col, barCol, inBar * uNoise * 2.0);
     }
+  }
+
+  /* ── SUPER8 — film stock, gate weave, dust, burn bloom, amber tone ── */
+  if(uS8 > 0.002){
+    float s8Frame = floor(uTime * 18.0);
+    float s8Weave = (hash(vec2(s8Frame, 12.34)) - 0.5) * 0.025 * uS8;
+
+    /* Gate weave vertical jitter */
+    float s8Gate = step(0.0 + s8Weave, cl.y) * step(cl.y, 1.0 + s8Weave);
+    col *= s8Gate;
+
+    /* Sparse bright dust specks and hairs */
+    if(uS8Dust > 0.002){
+      float dSeed = hash(floor(cl * uRes * 0.5) + vec2(s8Frame * 17.1, s8Frame * 43.7));
+      float speck = step(1.0 - uS8Dust * 0.004 * uS8, dSeed) * hash(vec2(dSeed, s8Frame));
+      col += vec3(0.95, 0.90, 0.75) * speck * 1.6;
+
+      vec2 hPos = cl * vec2(uRes.x / uRes.y, 1.0) * 10.0;
+      float hairN = abs(sin(hPos.x * 2.8 + sin(hPos.y * 4.5 + s8Frame)) + (hPos.y - hash(vec2(s8Frame, 7.7)) * 10.0) * 2.2);
+      float hair = step(hairN, 0.07) * step(0.75, hash(vec2(s8Frame * 3.1, 88.0))) * uS8Dust * uS8;
+      col *= (1.0 - hair * 0.85);
+    }
+
+    /* Orange-brown burn bloom creeping from frame-dependent corner */
+    if(uS8Burn > 0.002){
+      float cornerPick = floor(hash(vec2(s8Frame * 0.12, 99.1)) * 4.0);
+      vec2 corner = (cornerPick == 0.0) ? vec2(0.0, 0.0) : ((cornerPick == 1.0) ? vec2(1.0, 0.0) : ((cornerPick == 2.0) ? vec2(0.0, 1.0) : vec2(1.0, 1.0)));
+      float burnDist = length(cl - corner);
+      float burnNoise = vnoise(cl * 7.0 + vec2(uTime * 0.4));
+      float burnRadius = uS8Burn * 0.75 + 0.15 * sin(uTime * 2.5 + s8Frame);
+      float burnEdge = smoothstep(burnRadius + 0.22, max(0.0, burnRadius - 0.18), burnDist + burnNoise * 0.12);
+      vec3 burnCol = vec3(1.0, 0.42, 0.06) * 1.5 + vec3(0.28, 0.10, 0.02) * (1.0 - burnDist);
+      col = mix(col, burnCol, burnEdge * uS8Burn * uS8);
+    }
+
+    /* Heavy vignette */
+    float s8Vignette = smoothstep(0.92, 0.30, length(c) * (1.0 + uS8 * 0.7));
+    col *= mix(1.0, s8Vignette, uS8 * 0.80);
+
+    /* Amber warmth */
+    vec3 amber = vec3(col.r * 1.14 + 0.04, col.g * 0.94 + 0.02, col.b * 0.68 - 0.02);
+    col = mix(col, clamp(amber, 0.0, 1.0), uS8 * 0.48);
+  }
+
+  /* ── OVERLAY — ring oldest frame composite ── */
+  if(uOver > 0.002){
+    float oldestLayer = mod(uHead + 1.0, uRingN);
+    vec3 oldCol = texture(uRing, vec3(cl, oldestLayer)).rgb;
+    vec3 blended = col;
+    int oMode = int(uOverMode + 0.5);
+    if(oMode == 0)      blended = 1.0 - (1.0 - col) * (1.0 - oldCol);
+    else if(oMode == 1) blended = col * oldCol;
+    else if(oMode == 2) blended = abs(col - oldCol);
+    else                blended = col + oldCol;
+    col = mix(col, clamp(blended, 0.0, 1.0), uOver);
   }
 
   col = mix(texture(uRaw, cl).rgb, col, uMix);
@@ -1135,6 +1259,11 @@ function Engine(canvas){
       gl.uniform1f(m.uW3dPitch, p.w3dPitch);
       gl.uniform1f(m.uW3dYaw, p.w3dYaw);
       gl.uniform1f(m.uW3dRoll, p.w3dRoll);
+      gl.uniform1f(m.uWater, p.water);
+      gl.uniform1f(m.uWaterBleed, p.waterBleed);
+      gl.uniform1f(m.uScope, p.scope);
+      gl.uniform1f(m.uScopeLines, p.scopeLines);
+      gl.uniform1f(m.uScopeGlow, p.scopeGlow);
       draw(work);
 
       /* ── SIGNAL ── */
@@ -1216,6 +1345,13 @@ function Engine(canvas){
       gl.uniform1f(q.uMask, p.mask);
       gl.uniform1f(q.uMaskSize, p.maskSize);
       gl.uniform1f(q.uMaskSpeed, p.maskSpeed);
+      gl.uniform1f(q.uStreak, p.streak);
+      gl.uniform1f(q.uStreakAngle, p.streakAngle);
+      gl.uniform1f(q.uS8, p.s8);
+      gl.uniform1f(q.uS8Dust, p.s8Dust);
+      gl.uniform1f(q.uS8Burn, p.s8Burn);
+      gl.uniform1f(q.uOver, p.over);
+      gl.uniform1f(q.uOverMode, p.overMode);
       gl.uniform1i(q.uInv, p.inv|0);
       draw(prev);
 
