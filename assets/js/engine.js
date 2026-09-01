@@ -163,7 +163,7 @@ void main(){
 
   /* ── WARP3D — 3D perspective plane ── */
   if(uW3d > 0.002){
-    float pitch = (uW3dPitch - 0.5) * PI * 1.2 * uW3d;
+    float pitch = ((uW3dPitch - 0.5) * 1.2 + 0.25) * PI * uW3d;
     float yaw   = (uW3dYaw   - 0.5) * PI * 1.2 * uW3d;
     float rollAngle = (uW3dRoll - 0.5) * PI * 1.2 * uW3d;
 
@@ -612,10 +612,12 @@ void main(){
 /* ── POST ──────────────────────────────────────────────────── */
 const FS_POST = HEAD + `
 uniform sampler2D uTex, uRaw;
+uniform sampler2DArray uRing;
 uniform vec2  uRes;
-uniform float uTime, uBend;
+uniform float uTime, uBend, uHead, uRingN;
 uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias, uSat, uCon, uRoute;
 uniform float uDuo, uAxis;
+uniform float uCga, uCgaPal, uAscii, uAsciiTint, uKey, uKeyHue, uKeyTol, uMask, uMaskSize, uMaskSpeed;
 uniform int   uInv;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
@@ -732,6 +734,128 @@ void main(){
       h[i] = step(length(cell), sqrt(max(v,0.0))*0.55);
     }
     col = mix(col, h, uHalf);
+  }
+
+  /* ── CGA — 1982 4-colour pixelation with Bayer ordered dither ── */
+  if(uCga > 0.002){
+    float cgaBlock = max(1.0, floor(mix(2.0, 16.0, uCga)));
+    vec2 cgaUv = (floor(cl * uRes / cgaBlock) + 0.5) * cgaBlock / uRes;
+    vec3 blockCol = texture(uTex, cgaUv).rgb;
+
+    int palIdx = int(uCgaPal + 0.5);
+    vec3 palCol[4];
+    if(palIdx == 0){
+      palCol[0] = vec3(0.0);
+      palCol[1] = vec3(0.333, 1.0, 1.0);
+      palCol[2] = vec3(1.0, 0.333, 1.0);
+      palCol[3] = vec3(1.0, 1.0, 1.0);
+    } else if(palIdx == 1){
+      palCol[0] = vec3(0.0);
+      palCol[1] = vec3(0.333, 1.0, 0.333);
+      palCol[2] = vec3(1.0, 0.333, 0.333);
+      palCol[3] = vec3(1.0, 1.0, 0.333);
+    } else {
+      palCol[0] = vec3(0.0);
+      palCol[1] = vec3(0.40, 0.20, 0.0);
+      palCol[2] = vec3(0.80, 0.48, 0.05);
+      palCol[3] = vec3(1.0, 0.78, 0.15);
+    }
+
+    int i1 = 0, i2 = 1;
+    vec3 diff0 = blockCol - palCol[0];
+    vec3 diff1 = blockCol - palCol[1];
+    float d1 = dot(diff0, diff0);
+    float d2 = dot(diff1, diff1);
+    if(d2 < d1){
+      float td = d1; d1 = d2; d2 = td;
+      int ti = i1; i1 = i2; i2 = ti;
+    }
+    for(int k = 2; k < 4; k++){
+      vec3 diffK = blockCol - palCol[k];
+      float dk = dot(diffK, diffK);
+      if(dk < d1){
+        d2 = d1; i2 = i1;
+        d1 = dk; i1 = k;
+      } else if(dk < d2){
+        d2 = dk; i2 = k;
+      }
+    }
+    float wDither = d1 / max(1e-5, d1 + d2);
+    float bVal = bayer(fp);
+    col = (wDither > bVal) ? palCol[i2] : palCol[i1];
+  }
+
+  /* ── ASCII — text mosaic with procedural 4x5 bit-packed font ── */
+  if(uAscii > 0.002){
+    const int font[10] = int[10](0, 0x66000, 0x66060, 0x00F00, 0x44F44, 0x96F69, 0x69996, 0x5F5F5, 0x69696, 0xFFFFF);
+    vec2 asciiCell = vec2(floor(mix(6.0, 22.0, uAscii)), floor(mix(8.0, 28.0, uAscii)));
+    vec2 cellCoord = floor(cl * uRes / asciiCell);
+    vec2 cellUv = (cellCoord + 0.5) * asciiCell / uRes;
+    vec3 cellCol = texture(uTex, cellUv).rgb;
+    float cellL = luma(cellCol);
+
+    int glyphIdx = clamp(int(cellL * 10.0), 0, 9);
+    vec2 inCell = mod(cl * uRes, asciiCell);
+    vec2 cellNorm = inCell / asciiCell;
+
+    ivec2 glyphPx = ivec2(clamp(floor((cellNorm - 0.06) / 0.88 * vec2(4.0, 5.0)), vec2(0.0), vec2(3.0, 4.0)));
+    bool inGlyph = (cellNorm.x >= 0.06 && cellNorm.x <= 0.94 && cellNorm.y >= 0.06 && cellNorm.y <= 0.94);
+    int bitShift = glyphPx.y * 4 + glyphPx.x;
+    int isPx = inGlyph ? ((font[glyphIdx] >> bitShift) & 1) : 0;
+
+    vec3 phosphor = vec3(0.18, 1.0, 0.32) * (0.6 + 0.6 * cellL);
+    vec3 fg = mix(cellCol, phosphor, uAsciiTint);
+    col = float(isPx) * fg;
+  }
+
+  /* ── CHROMAKEY — YUV chroma key with Vlahos despill and ring frame replacement ── */
+  if(uKey > 0.002){
+    float keyY = dot(col, vec3(0.299, 0.587, 0.114));
+    float keyU = 0.492 * (col.b - keyY);
+    float keyV = 0.877 * (col.r - keyY);
+    float keyAng = atan(keyV, keyU);
+    float keyMag = length(vec2(keyU, keyV));
+
+    float targetAng = uKeyHue * TAU - PI;
+    float dAng = abs(atan(sin(keyAng - targetAng), cos(keyAng - targetAng)));
+    float tol = mix(0.15, 1.25, uKeyTol);
+    float softness = tol * 0.45;
+    float satWeight = smoothstep(0.02, 0.09, keyMag);
+    float matte = (1.0 - smoothstep(tol - softness, tol + softness, dAng)) * satWeight * uKey;
+
+    /* Vlahos despill in fringe */
+    float fringe = smoothstep(tol * 1.6, tol * 0.4, dAng) * satWeight * uKey;
+    float rProj = keyY + 1.140 * sin(targetAng);
+    float gProj = keyY - 0.395 * cos(targetAng) - 0.581 * sin(targetAng);
+    float bProj = keyY + 2.032 * cos(targetAng);
+    if(gProj >= rProj && gProj >= bProj){
+      float avgRB = (col.r + col.b) * 0.5;
+      col.g = mix(col.g, min(col.g, avgRB), fringe);
+    } else if(bProj >= rProj && bProj >= gProj){
+      float avgRG = (col.r + col.g) * 0.5;
+      col.b = mix(col.b, min(col.b, avgRG), fringe);
+    } else {
+      float avgGB = (col.g + col.b) * 0.5;
+      col.r = mix(col.r, min(col.r, avgGB), fringe);
+    }
+
+    float pastLayer = mod(uHead - 14.0 + uRingN * 4.0, uRingN);
+    float flLayer = floor(pastLayer);
+    vec3 pastCol = mix(texture(uRing, vec3(cl, flLayer)).rgb,
+                       texture(uRing, vec3(cl, mod(flLayer + 1.0, uRingN))).rgb,
+                       fract(pastLayer));
+    col = mix(col, pastCol, clamp(matte, 0.0, 1.0));
+  }
+
+  /* ── MASKBLOCKS — animated spatial block gating ── */
+  if(uMask > 0.002){
+    float mBlockSize = floor(mix(8.0, 64.0, uMaskSize));
+    vec2 mBlockId = floor(cl * uRes / mBlockSize);
+    float mTimeStep = floor(uTime * mix(2.0, 24.0, uMaskSpeed));
+    float mHash = hash(mBlockId * 1.73 + vec2(mTimeStep * 0.31, mTimeStep * 0.77));
+    float blockOn = step(1.0 - uMask, mHash);
+    vec3 rawSource = texture(uRaw, cl).rgb;
+    col = mix(rawSource, col, blockOn);
   }
 
   if(uInv == 1) col = 1.0 - col;
@@ -1063,8 +1187,11 @@ function Engine(canvas){
       gl.useProgram(P.post.p);
       useTex(P.post, 'uTex', src.tex, 0);
       useTex(P.post, 'uRaw', raw.tex, 1);
+      useTex(P.post, 'uRing', ringTex, 2, gl.TEXTURE_2D_ARRAY);
       const q = P.post.u;
       gl.uniform2f(q.uRes, W, H);
+      gl.uniform1f(q.uHead, newest);
+      gl.uniform1f(q.uRingN, RING);
       gl.uniform1f(q.uTime, p.time);
       gl.uniform1f(q.uBend, p.bend);
       gl.uniform1f(q.uScan, p.scan);
@@ -1079,6 +1206,16 @@ function Engine(canvas){
       gl.uniform1f(q.uNoise, p.noise);
       gl.uniform1f(q.uMix, p.mix);
       gl.uniform1f(q.uBias, p.bias);
+      gl.uniform1f(q.uCga, p.cga);
+      gl.uniform1f(q.uCgaPal, p.cgaPal);
+      gl.uniform1f(q.uAscii, p.ascii);
+      gl.uniform1f(q.uAsciiTint, p.asciiTint);
+      gl.uniform1f(q.uKey, p.key);
+      gl.uniform1f(q.uKeyHue, p.keyHue);
+      gl.uniform1f(q.uKeyTol, p.keyTol);
+      gl.uniform1f(q.uMask, p.mask);
+      gl.uniform1f(q.uMaskSize, p.maskSize);
+      gl.uniform1f(q.uMaskSpeed, p.maskSpeed);
       gl.uniform1i(q.uInv, p.inv|0);
       draw(prev);
 

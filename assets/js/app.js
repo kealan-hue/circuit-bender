@@ -41,6 +41,7 @@ const V = {
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
   w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
+  cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
 };
@@ -51,7 +52,8 @@ const NEUTRAL = Object.assign({}, V, {
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
-  w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5
+  w3d:0, w3dPitch:0.5, w3dYaw:0.5, w3dRoll:0.5,
+  cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5
 });
 const DEF = NEUTRAL;
 
@@ -67,6 +69,7 @@ const STAGE = {
   sensor: ['smear','bitAmt'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll'],
+  redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
   sort:   ['sort'],
   out:    ['post','dither','half','scan','noise','sat','con','route','duo']
 };
@@ -484,6 +487,18 @@ const RACK = [
     S('sortAxis','AXIS',['HORIZ','VERT']),
     S('sortOrder','DIR',['UP','DOWN']),
     S('sortSpan','SPAN',['1:1','WIDE'], { value:1 })
+  ]},
+  { id:'redraw', name:'REDRAW', note:'another medium', wide:true, ctl:[
+    K('cga',       'CGA',      { def:0 }),
+    S('cgaPal',    'CGA PAL',  ['MAGENTA','RED/GRN','AMBER']),
+    K('ascii',     'ASCII',    { def:0 }),
+    K('asciiTint', 'PHOSPHOR', { def:0 }),
+    K('key',       'CHROMA',   { def:0 }),
+    K('keyHue',    'KEY HUE',  { def:0.33, detent:[0.33] }),
+    K('keyTol',    'KEY TOL',  { def:0.3 }),
+    K('mask',      'MASK',     { def:0 }),
+    K('maskSize',  'M SIZE',   { def:0.5 }),
+    K('maskSpeed', 'M SPEED',  { def:0.5 })
   ]},
   { id:'out', name:'OUTPUT', wide:true, ctl:[
     K('post','QUANT',  { def:0 }),
@@ -1071,6 +1086,7 @@ function selftest(passes){
   Object.assign(V, {
     slit:.7, ctime:.5, echo:.5, delayMix:.5, tear:.6, warp:.6, kal:.4,
     tile:.5, split:.5, stretch:.5, w3d:.5,
+    cga:.5, cgaPal:0, ascii:.5, asciiTint:.5, key:.5, keyHue:.33, keyTol:.3, mask:.5, maskSize:.5, maskSpeed:.5,
     rutt:.5, mosh:.6, feed:.5, droste:.4, headsw:.5, wave:.5, chromaLoss:.4,
     ntsc:.8, ghost:.4, smear:.5, bitAmt:.5, sort:.7, post:.5, dither:.6,
     half:.4, scan:.4, noise:.3
