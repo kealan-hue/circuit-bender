@@ -721,7 +721,7 @@ uniform sampler2DArray uRing;
 uniform vec2  uRes;
 uniform float uTime, uBend, uHead, uRingN;
 uniform float uScan, uPost, uDither, uHalf, uNoise, uMix, uBias, uSat, uCon, uRoute;
-uniform float uDuo, uAxis;
+uniform float uDuo, uAxis, uPoles;
 uniform float uCga, uCgaPal, uAscii, uAsciiTint, uKey, uKeyHue, uKeyTol, uMask, uMaskSize, uMaskSpeed;
 uniform float uStreak, uStreakAngle;
 uniform float uS8, uS8Dust, uS8Burn;
@@ -789,7 +789,12 @@ void main(){
        pole, which is why the whole frame came out one colour — the two-tone
        only appears if the far half of the wheel keeps its own pole. */
     float rel = atan(sin(ang - pole), cos(ang - pole));      /* wrap to ±PI */
-    float target = (abs(rel) < PI_2) ? 0.0 : (rel > 0.0 ? PI : -PI);
+    /* N poles evenly spaced round the wheel, snap each hue to the nearest.
+       uPoles = 1 gives a monotone, 2 reproduces the two-pole fold bit for bit
+       (seg = PI, so the floor lands on 0, +PI or -PI exactly as the explicit
+       ternary did), 3 and up give a tri-tone and beyond. */
+    float seg = TAU / max(uPoles, 1.0);
+    float target = floor(rel / seg + 0.5) * seg;
     float folded = pole + mix(rel, target, uDuo);
     mag *= 1.0 + uDuo * 0.85;
     U = mag * cos(folded);
@@ -1488,6 +1493,7 @@ function Engine(canvas){
       gl.uniform1f(q.uCon, p.con);
       gl.uniform1f(q.uRoute, p.route);
       gl.uniform1f(q.uDuo, p.duo);
+      gl.uniform1f(q.uPoles, ((p.poles == null ? 1 : p.poles) | 0) + 1);  /* index -> count */
       gl.uniform1f(q.uAxis, p.axis);
       gl.uniform1f(q.uHalf, p.half);
       gl.uniform1f(q.uNoise, p.noise);

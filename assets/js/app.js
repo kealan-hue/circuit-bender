@@ -31,7 +31,7 @@ const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
    fringe. Geometry-destroying stages (sort, mosh, warp, slit, fold) start at
    zero; they are where you go, not where you start. */
 const V = {
-  gain:0.5, bias:0.5, route:0, duo:0.62, axis:0.34, sat:0.42, con:0.26, mix:1,
+  gain:0.5, bias:0.5, route:0, duo:0.62, poles:1, axis:0.34, sat:0.42, con:0.26, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
   tear:0.05, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
@@ -58,7 +58,7 @@ const V = {
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
-  bias:0.5, route:0, duo:0, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0,
+  bias:0.5, route:0, duo:0, poles:1, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
@@ -454,6 +454,7 @@ const RACK = [
     K('gain','GAIN',   { def:0.5, detent:[0.5] }),
     K('bias','TINT',   { def:0.5, detent:[0.5] }),
     K('duo','DUOTONE',{ def:0 }),
+    S('poles','POLES',['MONO','DUO','TRI','QUAD'], { value:1, def:1 }),
     K('axis','AXIS',   { def:0.34 }),
     K('route','ROUTE', { def:0 }),
     K('sat','COLOUR',  { def:0 }),

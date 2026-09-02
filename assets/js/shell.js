@@ -116,11 +116,12 @@ const BUILDS = {
     name: 'DUO',
     path: '/builds/two_pole',
     tag: 'CBX-DUO',
-    defaults: { duo: 0.75, axis: 0.34, sat: 0.60 },
+    defaults: { duo: 0.75, poles: 1, axis: 0.34, sat: 0.60 },
     controls: [
-      { id: 'duo',  label: 'DUOTONE', kind: 'knob', value: 0.75, def: 0 },
-      { id: 'axis', label: 'AXIS',    kind: 'knob', value: 0.34, def: 0.34, detent: [0.34] },
-      { id: 'sat',  label: 'COLOUR',  kind: 'knob', value: 0.60, def: 0 }
+      { id: 'duo',   label: 'DUOTONE', kind: 'knob', value: 0.75, def: 0 },
+      { id: 'poles', label: 'POLES',   kind: 'slide', positions: ['MONO','DUO','TRI','QUAD'], value: 1, def: 1 },
+      { id: 'axis',  label: 'AXIS',    kind: 'knob', value: 0.34, def: 0.34, detent: [0.34] },
+      { id: 'sat',   label: 'COLOUR',  kind: 'knob', value: 0.60, def: 0 }
     ]
   },
   streak: {
