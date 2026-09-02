@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0e10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="CIRCUIT BENDER — bend your live camera signal in real time. Short the pins, turn the knobs, break the picture.">
+<title>CIRCUIT BENDER</title>
+<link rel="stylesheet" href="../assets/css/panel.css?v=26">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div class="device">
+
+  <!-- ══ head ══ -->
+  <header class="head">
+    <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+    <div class="head__mark" id="brandmark"></div>
+    <div class="head__id">
+      <b class="head__name">CIRCUIT BENDER</b>
+      <span class="head__sub">CAMERA SIGNAL BENDER &nbsp;·&nbsp; CB-1</span>
+    </div>
+    <div class="head__plate">
+      <span>SER.</span><b id="serial">——</b>
+      <span>FPS</span><b id="fps">00</b>
+    </div>
+  </header>
+  <div class="etch" id="rule-a"></div>
+
+  <!-- ══ front door — twelve shorts, two knobs, the shutter ══ -->
+  <section class="front" id="front">
+
+  <section class="screen">
+    <div class="screen__bezel">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <i class="screw screw--bl"></i><i class="screw screw--br"></i>
+      <div class="tube">
+        <canvas id="glass"></canvas>
+        <div class="tube__glare"></div>
+        <div class="flash" id="flash"></div>
+        <button class="start" id="start" type="button">
+          <b>TOUCH TO OPEN SENSOR</b>
+          <em>camera access is required · nothing leaves this device</em>
+        </button>
+      </div>
+      <div class="strip">
+        <div class="crt" id="crt">STANDBY</div>
+        <div class="meters" id="meters"></div>
+      </div>
+    </div>
+  </section>
+
+    <!-- the twelve, by the pins they short -->
+    <div class="bendsel">
+      <button class="bendsel__arrow" id="bend-prev" type="button" aria-label="previous bend">&lsaquo;</button>
+      <b class="bendsel__name" id="bend-name">&mdash;</b>
+      <button class="bendsel__arrow" id="bend-next" type="button" aria-label="next bend">&rsaquo;</button>
+    </div>
+    <div class="bendsel__dots" id="bend-dots"></div>
+
+    <div class="front__knobs" id="front-knobs"></div>
+
+    <div class="front__row">
+      <button class="fbtn" id="b-shot" type="button"><b>PHOTO</b></button>
+      <button class="fbtn fbtn--rec" id="b-rec" type="button"><b>REC</b></button>
+      <button class="fbtn" id="b-cam" type="button"><b>CAM</b></button>
+    </div>
+
+    <button class="big" id="b-bend" type="button">
+      <span class="big__ring"></span>
+      <b>BEND</b><em>hold</em>
+    </button>
+
+    <button class="deep-handle" id="deep-handle" type="button">
+      <i></i><span>PANEL</span>
+    </button>
+  </section>
+
+  <!-- ══ deep layer — the probe, then the knobs it earned ══ -->
+  <div class="deep" id="deep">
+  <button class="deep-close" id="deep-close" type="button" aria-label="close panel">CLOSE PANEL</button>
+
+  <!-- ══ transport ══ -->
+  <section class="transport">
+    <div class="transport__grid">
+      <button class="pb pb--amber" id="b-scram" type="button"><b>SCRAMBLE</b><em>R</em></button>
+      <button class="pb" id="b-hold"  type="button"><b>HOLD</b><em>F</em></button>
+      <button class="pb pb--red" id="b-kill"  type="button"><b>KILL</b><em>X</em></button>
+      <button class="pb" id="b-qual"  type="button"><b>MID</b><em>res</em></button>
+    </div>
+  </section>
+
+  <!-- ══ rewire — short two pins of the imaginary sensor chip together ══ -->
+  <section class="wire">
+    <div class="wire__head">
+      <i class="wire__led" id="wire-led"></i>
+      <b>REWIRE</b>
+      <em>drag one pin onto another to short them · tap a wire to cut it</em>
+    </div>
+
+    <div class="chip" id="chip">
+      <div class="chip__col chip__col--l" id="pins-l"></div>
+      <div class="chip__ic">
+        <span class="chip__notch"></span>
+        <span class="chip__name">CBX&#8209;01</span>
+      </div>
+      <div class="chip__col chip__col--r" id="pins-r"></div>
+      <svg class="chip__wires" id="chip-wires" aria-hidden="true"></svg>
+    </div>
+
+    <div class="wire__read" id="wire-read">CHIP INTACT — NO BRIDGES</div>
+
+    <div class="bay">
+      <div class="bay__lab">AUTO<br>MOVE</div>
+      <div class="bay__jacks" id="patchbay"></div>
+      <div class="bay__hint">drag one onto a knob &rarr; that knob moves by itself. PULL removes it.</div>
+    </div>
+  </section>
+
+  <div class="etch" id="rule-b"></div>
+
+  <!-- ══ rack ══ -->
+  <main class="rack" id="rack"></main>
+
+  <footer class="foot">
+    <i class="screw screw--bl"></i><i class="screw screw--br"></i>
+    <span>CIRCUIT BENDER CB-1 · NO SIGNAL LEAVES THIS DEVICE · <b id="foot-ser"></b></span>
+    <span class="foot__keys">SPACE bend · R scramble · F hold · C frame · V tape · X kill
+      &nbsp;|&nbsp; shift-drag = fine · double-click = default · tap a number to type one</span>
+  </footer>
+  </div><!-- /.deep -->
+</div>
+
+<script src="../assets/js/sigil.js?v=26"></script>
+<script src="../assets/js/ui.js?v=26"></script>
+<script src="../assets/js/engine.js?v=26"></script>
+<script src="../assets/js/app.js?v=26"></script>
+<script>document.getElementById('foot-ser').textContent = localStorage.getItem('circuitbender.serial')||'';</script>
+</body>
+</html>

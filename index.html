@@ -6,138 +6,289 @@
 <meta name="theme-color" content="#0d0e10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="CIRCUIT BENDER — bend your live camera signal in real time. Short the pins, turn the knobs, break the picture.">
-<title>CIRCUIT BENDER</title>
-<link rel="stylesheet" href="assets/css/panel.css?v=26">
+<meta name="description" content="CIRCUIT BENDER SHELL — multi-build video synthesis and hardware signal bend environment running on WebGL2.">
+<title>CIRCUIT BENDER // SHELL</title>
+<link rel="stylesheet" href="assets/css/panel.css">
+<link rel="stylesheet" href="assets/css/shell.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
 </head>
-<body>
+<body class="shell-body">
 
-<div class="device">
+<!-- Single WebGL2 Canvas Stage: full-bleed background behind all panels -->
+<canvas id="stage" class="shell-stage"></canvas>
 
-  <!-- ══ head ══ -->
-  <header class="head">
-    <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-    <div class="head__mark" id="brandmark"></div>
-    <div class="head__id">
-      <b class="head__name">CIRCUIT BENDER</b>
-      <span class="head__sub">CAMERA SIGNAL BENDER &nbsp;·&nbsp; CB-1</span>
+<!-- Top Status / Header Bar -->
+<header class="shell-head">
+  <div class="shell-head__left">
+    <div class="shell-head__mark" id="shell-brandmark"></div>
+    <div class="shell-head__title">
+      <b class="shell-head__name">CIRCUIT BENDER</b>
+      <span class="shell-head__sub">SHELL DESKTOP &nbsp;·&nbsp; CB-0 &nbsp;·&nbsp; LIVE ENGINE</span>
     </div>
-    <div class="head__plate">
-      <span>SER.</span><b id="serial">——</b>
-      <span>FPS</span><b id="fps">00</b>
+  </div>
+  <div class="shell-head__center">
+    <div class="shell-head__active-path">
+      <span class="shell-head__dot"></span>
+      <span id="shell-active-label">/builds/two_pole</span>
     </div>
-  </header>
-  <div class="etch" id="rule-a"></div>
+  </div>
+  <div class="shell-head__right">
+    <div class="shell-head__plate">
+      <span>SER.</span><b id="shell-serial">——</b>
+      <span>FPS</span><b id="shell-fps">00</b>
+    </div>
+    <button type="button" class="shell-head__btn" id="shell-cam-btn" title="Toggle camera">CAM</button>
+  </div>
+</header>
+<div class="shell-head__etch" id="shell-rule"></div>
 
-  <!-- ══ front door — twelve shorts, two knobs, the shutter ══ -->
-  <section class="front" id="front">
+<!-- Desktop Container containing all panels -->
+<main class="shell-desktop" id="desktop">
 
-  <section class="screen">
-    <div class="screen__bezel">
+  <!-- /builds/datamosh -->
+  <article class="shell-panel" data-build="mosh" id="panel-mosh">
+    <header class="shell-panel__header">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <i class="screw screw--bl"></i><i class="screw screw--br"></i>
-      <div class="tube">
-        <canvas id="glass"></canvas>
-        <div class="tube__glare"></div>
-        <div class="flash" id="flash"></div>
-        <button class="start" id="start" type="button">
-          <b>TOUCH TO OPEN SENSOR</b>
-          <em>camera access is required · nothing leaves this device</em>
-        </button>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/datamosh</b>
       </div>
-      <div class="strip">
-        <div class="crt" id="crt">STANDBY</div>
-        <div class="meters" id="meters"></div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-mosh"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-MOSH</span>
+      <em>p-frame vector carry · recursive buffer</em>
+    </footer>
+  </article>
+
+  <!-- /builds/pixelsort -->
+  <article class="shell-panel" data-build="sort" id="panel-sort">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/pixelsort</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-sort"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-SORT</span>
+      <em>odd-even transposition · luma gate</em>
+    </footer>
+  </article>
+
+  <!-- /builds/composite -->
+  <article class="shell-panel" data-build="ntsc" id="panel-ntsc">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/composite</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-ntsc"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-NTSC</span>
+      <em>fs/4 QAM encode · subcarrier burst · head switch</em>
+    </footer>
+  </article>
+
+  <!-- /builds/rutt_etra -->
+  <article class="shell-panel" data-build="raster" id="panel-raster">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/rutt_etra</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-raster"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-RAST</span>
+      <em>luma column gather · P7 vector scan</em>
+    </footer>
+  </article>
+
+  <!-- /builds/frame_ring -->
+  <article class="shell-panel" data-build="time" id="panel-time">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/frame_ring</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-time"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-TIME</span>
+      <em>32-layer texture array · temporal displacement</em>
+    </footer>
+  </article>
+
+  <!-- /builds/two_pole -->
+  <article class="shell-panel" data-build="duo" id="panel-duo">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/two_pole</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-duo"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-DUO</span>
+      <em>two-pole chroma fold · preserved luma</em>
+    </footer>
+  </article>
+
+  <!-- /builds/light_streak -->
+  <article class="shell-panel" data-build="streak" id="panel-streak">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/light_streak</b>
+      </div>
+      <div class="shell-panel__actions">
+        <button type="button" class="shell-panel__act-btn">SELECT</button>
+      </div>
+    </header>
+    <div class="shell-panel__body" id="body-streak"></div>
+    <footer class="shell-panel__footer">
+      <span>CBX-FILM</span>
+      <em>flare streak · Super 8 emulsion · gate dust</em>
+    </footer>
+  </article>
+
+  <!-- /builds/circuit_bender -->
+  <article class="shell-panel shell-panel--bender" data-build="bender" id="panel-bender">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/builds/circuit_bender</b>
+      </div>
+      <div class="shell-panel__actions">
+        <span class="shell-panel__badge">INSTRUMENT</span>
+      </div>
+    </header>
+    <div class="shell-panel__body">
+      <div class="shell-bender-box">
+        <div class="shell-bender-box__desc">
+          <b>FULL INSTRUMENT RIG</b>
+          <span>12 soldered bends &middot; 8-pin REWIRE matrix &middot; 16 modules &middot; 110 real controls</span>
+        </div>
+        <a href="bender/" class="shell-bender-launch">
+          <b>OPEN CIRCUIT BENDER</b>
+          <em>LAUNCH DEEP INSTRUMENT &rarr;</em>
+        </a>
       </div>
     </div>
-  </section>
+    <footer class="shell-panel__footer">
+      <span>CB-1 HARDWARE</span>
+      <em>dedicated deep surface · discrete build</em>
+    </footer>
+  </article>
 
-    <!-- the twelve, by the pins they short -->
-    <div class="bendsel">
-      <button class="bendsel__arrow" id="bend-prev" type="button" aria-label="previous bend">&lsaquo;</button>
-      <b class="bendsel__name" id="bend-name">&mdash;</b>
-      <button class="bendsel__arrow" id="bend-next" type="button" aria-label="next bend">&rsaquo;</button>
-    </div>
-    <div class="bendsel__dots" id="bend-dots"></div>
-
-    <div class="front__knobs" id="front-knobs"></div>
-
-    <div class="front__row">
-      <button class="fbtn" id="b-shot" type="button"><b>PHOTO</b></button>
-      <button class="fbtn fbtn--rec" id="b-rec" type="button"><b>REC</b></button>
-      <button class="fbtn" id="b-cam" type="button"><b>CAM</b></button>
-    </div>
-
-    <button class="big" id="b-bend" type="button">
-      <span class="big__ring"></span>
-      <b>BEND</b><em>hold</em>
-    </button>
-
-    <button class="deep-handle" id="deep-handle" type="button">
-      <i></i><span>PANEL</span>
-    </button>
-  </section>
-
-  <!-- ══ deep layer — the probe, then the knobs it earned ══ -->
-  <div class="deep" id="deep">
-  <button class="deep-close" id="deep-close" type="button" aria-label="close panel">CLOSE PANEL</button>
-
-  <!-- ══ transport ══ -->
-  <section class="transport">
-    <div class="transport__grid">
-      <button class="pb pb--amber" id="b-scram" type="button"><b>SCRAMBLE</b><em>R</em></button>
-      <button class="pb" id="b-hold"  type="button"><b>HOLD</b><em>F</em></button>
-      <button class="pb pb--red" id="b-kill"  type="button"><b>KILL</b><em>X</em></button>
-      <button class="pb" id="b-qual"  type="button"><b>MID</b><em>res</em></button>
-    </div>
-  </section>
-
-  <!-- ══ rewire — short two pins of the imaginary sensor chip together ══ -->
-  <section class="wire">
-    <div class="wire__head">
-      <i class="wire__led" id="wire-led"></i>
-      <b>REWIRE</b>
-      <em>drag one pin onto another to short them · tap a wire to cut it</em>
-    </div>
-
-    <div class="chip" id="chip">
-      <div class="chip__col chip__col--l" id="pins-l"></div>
-      <div class="chip__ic">
-        <span class="chip__notch"></span>
-        <span class="chip__name">CBX&#8209;01</span>
+  <!-- /system/status -->
+  <article class="shell-panel shell-panel--sys" data-build="status" id="panel-status">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/system/status</b>
       </div>
-      <div class="chip__col chip__col--r" id="pins-r"></div>
-      <svg class="chip__wires" id="chip-wires" aria-hidden="true"></svg>
+      <div class="shell-panel__actions">
+        <span class="shell-panel__badge">TELEMETRY</span>
+      </div>
+    </header>
+    <div class="shell-panel__body">
+      <div class="shell-status-grid">
+        <div class="shell-status-item">
+          <span class="shell-status-item__k">FPS</span>
+          <b class="shell-status-item__v" id="sys-fps">60</b>
+        </div>
+        <div class="shell-status-item">
+          <span class="shell-status-item__k">FRAME TIME</span>
+          <b class="shell-status-item__v" id="sys-ms">16.6ms</b>
+        </div>
+        <div class="shell-status-item">
+          <span class="shell-status-item__k">BUFFER RES</span>
+          <b class="shell-status-item__v" id="sys-res">640&times;480</b>
+        </div>
+        <div class="shell-status-item">
+          <span class="shell-status-item__k">WEBGL CTX</span>
+          <b class="shell-status-item__v">1 (SHARED)</b>
+        </div>
+        <div class="shell-status-item shell-status-item--wide">
+          <span class="shell-status-item__k">SENSOR</span>
+          <b class="shell-status-item__v" id="sys-sensor">OPENING…</b>
+        </div>
+        <div class="shell-status-item shell-status-item--wide">
+          <span class="shell-status-item__k">ACTIVE BUILD</span>
+          <b class="shell-status-item__v" id="sys-build">/builds/two_pole</b>
+        </div>
+      </div>
+      <div class="shell-status-actions">
+        <button type="button" class="shell-btn" id="sys-cam-btn"><b>FLIP CAMERA</b></button>
+        <button type="button" class="shell-btn" id="sys-qual-btn"><b>QUAL: MID</b></button>
+        <button type="button" class="shell-btn shell-btn--red" id="sys-reset-btn"><b>RESET PARAMS</b></button>
+      </div>
     </div>
+    <footer class="shell-panel__footer">
+      <span>SYS-STAT</span>
+      <em>live pipeline monitor · zero-overhead telemetry</em>
+    </footer>
+  </article>
 
-    <div class="wire__read" id="wire-read">CHIP INTACT — NO BRIDGES</div>
-
-    <div class="bay">
-      <div class="bay__lab">AUTO<br>MOVE</div>
-      <div class="bay__jacks" id="patchbay"></div>
-      <div class="bay__hint">drag one onto a knob &rarr; that knob moves by itself. PULL removes it.</div>
+  <!-- /about -->
+  <article class="shell-panel shell-panel--about" data-build="about" id="panel-about">
+    <header class="shell-panel__header">
+      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
+      <div class="shell-panel__title">
+        <i class="shell-panel__led"></i>
+        <b class="shell-panel__path">/about</b>
+      </div>
+      <div class="shell-panel__actions">
+        <span class="shell-panel__badge">DOCS</span>
+      </div>
+    </header>
+    <div class="shell-panel__body">
+      <div class="shell-about-content">
+        <p class="shell-placeholder-note">[PLACEHOLDER &mdash; COPY TO BE PROVIDED BY OWNER]</p>
+        <p>CIRCUIT BENDER SHELL (CB-0) is a multi-build visual workspace. All preset tiles and instruments execute live on a single shared WebGL2 video pipeline over a full-bleed camera stage.</p>
+        <p>Select any tile or adjust its hardware knobs to route parameters into the signal path. The deep instrument with 12 soldered bends, probe wiring, and rack modulation is housed at <a href="bender/">/builds/circuit_bender</a>.</p>
+      </div>
     </div>
-  </section>
+    <footer class="shell-panel__footer">
+      <span>ARCHIVE</span>
+      <em>hardware specification · signal route map</em>
+    </footer>
+  </article>
 
-  <div class="etch" id="rule-b"></div>
+</main>
 
-  <!-- ══ rack ══ -->
-  <main class="rack" id="rack"></main>
-
-  <footer class="foot">
-    <i class="screw screw--bl"></i><i class="screw screw--br"></i>
-    <span>CIRCUIT BENDER CB-1 · NO SIGNAL LEAVES THIS DEVICE · <b id="foot-ser"></b></span>
-    <span class="foot__keys">SPACE bend · R scramble · F hold · C frame · V tape · X kill
-      &nbsp;|&nbsp; shift-drag = fine · double-click = default · tap a number to type one</span>
-  </footer>
-  </div><!-- /.deep -->
-</div>
-
-<script src="assets/js/sigil.js?v=26"></script>
-<script src="assets/js/ui.js?v=26"></script>
-<script src="assets/js/engine.js?v=26"></script>
-<script src="assets/js/app.js?v=26"></script>
-<script>document.getElementById('foot-ser').textContent = localStorage.getItem('circuitbender.serial')||'';</script>
+<script src="assets/js/sigil.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/shell.js"></script>
 </body>
 </html>

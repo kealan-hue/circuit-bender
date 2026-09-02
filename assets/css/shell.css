@@ -1,0 +1,669 @@
+/* ══════════════════════════════════════════════════════════════
+   CIRCUIT BENDER // SHELL — DESKTOP ENCLOSURE (CB-0)
+
+   Hardware-style multi-build desktop environment.
+   - Fixed 100dvh viewport, no desktop scroll
+   - Single WebGL2 canvas background (#stage)
+   - Draggable, path-labelled panels with bring-to-front
+   - First-class mobile layout (<900px single column)
+   - Sony consumer-kit chrome (c.1981-95) + cyber-sigilism tokens
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── viewport & reset ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.shell-body {
+  background: var(--bg, #08090a);
+  color: var(--mid, #9aa2aa);
+  font: 400 11px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Inter, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: fixed;
+  inset: 0;
+}
+
+/* ── background stage canvas: exactly one WebGL2 context ───── */
+.shell-stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
+  object-fit: cover;
+  z-index: 0;
+  display: block;
+  background: #000;
+  pointer-events: none;
+}
+
+/* ── topbar chrome ────────────────────────────────────────── */
+.shell-head {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #22262b 0%, #17191d 50%, #121417 100%);
+  border-bottom: 1px solid #000;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 2px 10px rgba(0,0,0,.8);
+}
+
+.shell-head__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.shell-head__mark {
+  color: #7d868f;
+  flex: 0 0 auto;
+  line-height: 0;
+  filter: drop-shadow(0 0 6px rgba(233,236,239,.18));
+}
+.shell-head__mark svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.shell-head__title {
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-head__name {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .24em;
+  color: var(--hot, #e9ecef);
+  text-shadow: 0 1px 0 #000, 0 0 10px rgba(233,236,239,.15);
+  white-space: nowrap;
+}
+
+.shell-head__sub {
+  font-size: 6.5px;
+  letter-spacing: .22em;
+  color: var(--dim, #6d747b);
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+.shell-head__center {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.shell-head__active-path {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3.5px 10px;
+  background: linear-gradient(180deg, #0a0b0d 0%, #121417 100%);
+  border: 1px solid #000;
+  border-top-color: #2a2e34;
+  border-radius: 3px;
+  font: 700 9.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+  color: #8fe6b0;
+  box-shadow: inset 0 0 8px rgba(57,211,83,.12);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-head__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--grn, #39d353);
+  box-shadow: 0 0 6px rgba(57,211,83,.8);
+  flex: 0 0 auto;
+}
+
+.shell-head__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.shell-head__plate {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-size: 7.5px;
+  letter-spacing: .16em;
+  color: var(--dim, #6d747b);
+  background: linear-gradient(180deg, #0a0b0c, #131518);
+  border: 1px solid #000;
+  border-top-color: #2a2e33;
+  border-radius: 2px;
+  padding: 4px 8px;
+}
+.shell-head__plate b {
+  color: var(--mid, #9aa2aa);
+  font-weight: 600;
+  letter-spacing: .08em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.shell-head__plate span + b {
+  margin-right: 6px;
+}
+
+.shell-head__btn {
+  border: 1px solid #000;
+  border-radius: 3px;
+  cursor: pointer;
+  font: 700 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .14em;
+  padding: 5px 9px;
+  color: var(--mid, #9aa2aa);
+  background: linear-gradient(180deg, #2b2f34 0%, #17191d 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 1px 2px rgba(0,0,0,.6);
+  transition: transform .05s, color .1s;
+}
+.shell-head__btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.7);
+}
+
+.shell-head__etch {
+  position: fixed;
+  top: 38px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 9998;
+  pointer-events: none;
+  overflow: hidden;
+  line-height: 0;
+  color: #3b4249;
+}
+.shell-head__etch svg {
+  width: 100%;
+  height: 14px;
+  display: block;
+}
+
+/* ── desktop panel container ──────────────────────────────── */
+.shell-desktop {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ── panel enclosure ──────────────────────────────────────── */
+.shell-panel {
+  position: absolute;
+  pointer-events: auto;
+  width: 278px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.01) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, var(--panel-hi, #1f2226) 0%, var(--panel, #191b1f) 18%, #141619 100%);
+  border: 1px solid #000;
+  border-top-color: #2f343b;
+  border-radius: var(--r, 3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 10px 30px rgba(0,0,0,.8);
+  transition: box-shadow .15s, border-color .15s;
+  user-select: none;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-panel.is-dragging {
+  opacity: 0.96;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.2),
+    0 20px 48px rgba(0,0,0,.95),
+    0 0 0 1px rgba(79,200,255,.3);
+  cursor: grabbing;
+}
+
+.shell-panel.is-active {
+  border-color: #3a4249;
+  border-top-color: #555d66;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    0 0 0 1px rgba(57,211,83,.25),
+    0 12px 36px rgba(0,0,0,.85),
+    0 0 18px rgba(57,211,83,.12);
+}
+
+/* ── panel header / titlebar ──────────────────────────────── */
+.shell-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px 6px;
+  cursor: grab;
+  position: relative;
+  background: linear-gradient(180deg, #25292f 0%, #191c20 100%);
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  box-shadow: 0 1px 0 rgba(0,0,0,.6);
+  border-radius: 2px 2px 0 0;
+}
+.shell-panel.is-dragging .shell-panel__header {
+  cursor: grabbing;
+}
+
+.shell-panel__header .screw--tl {
+  left: 5px;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+}
+.shell-panel__header .screw--tr {
+  right: 5px;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+}
+
+.shell-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: 9px;
+}
+
+.shell-panel__led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: #24272b;
+  box-shadow: inset 0 0 2px #000;
+  transition: background .12s, box-shadow .12s;
+}
+.shell-panel.is-active .shell-panel__led {
+  background: var(--grn, #39d353);
+  box-shadow: 0 0 7px rgba(57,211,83,.9);
+}
+
+.shell-panel__path {
+  font: 700 9.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .06em;
+  color: var(--mid, #9aa2aa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shell-panel.is-active .shell-panel__path {
+  color: var(--hot, #e9ecef);
+  text-shadow: 0 0 8px rgba(233,236,239,.2);
+}
+
+.shell-panel__actions {
+  margin-right: 9px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shell-panel__act-btn {
+  border: 1px solid #000;
+  border-radius: 2px;
+  cursor: pointer;
+  font: 700 7.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+  padding: 3.5px 7px;
+  color: var(--dim, #6d747b);
+  background: linear-gradient(180deg, #2b2f34 0%, #191c1f 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.6);
+  transition: all .1s;
+}
+.shell-panel__act-btn:hover {
+  color: var(--hot, #e9ecef);
+}
+.shell-panel.is-active .shell-panel__act-btn {
+  color: var(--grn, #39d353);
+  border-color: rgba(57,211,83,.4);
+  background: linear-gradient(180deg, #1b261e 0%, #101712 100%);
+  box-shadow: inset 0 1px 0 rgba(57,211,83,.25), 0 0 8px rgba(57,211,83,.25);
+}
+
+.shell-panel__badge {
+  font: 700 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+  padding: 3px 6px;
+  border-radius: 2px;
+  background: #0d0f11;
+  border: 1px solid #000;
+  border-top-color: #22262b;
+  color: var(--dim, #6d747b);
+}
+
+/* ── panel body ───────────────────────────────────────────── */
+.shell-panel__body {
+  padding: 11px 9px 9px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: flex-start;
+  gap: 10px 8px;
+  background: rgba(10, 11, 13, 0.45);
+}
+
+/* ── panel footer ─────────────────────────────────────────── */
+.shell-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 5px;
+  border-top: 1px solid rgba(255,255,255,.04);
+  font-size: 7px;
+  letter-spacing: .14em;
+  color: #4e555c;
+  background: linear-gradient(180deg, #141619 0%, #0e1012 100%);
+  border-radius: 0 0 2px 2px;
+}
+.shell-panel__footer span {
+  color: var(--dim, #6d747b);
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.shell-panel__footer em {
+  font-style: normal;
+  font-size: 6.5px;
+  letter-spacing: .06em;
+  color: #444a51;
+}
+
+/* ── circuit bender launcher panel ────────────────────────── */
+.shell-panel--bender .shell-panel__body {
+  display: block;
+  padding: 12px 10px;
+}
+.shell-bender-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shell-bender-box__desc b {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  color: var(--hot, #e9ecef);
+}
+.shell-bender-box__desc span {
+  display: block;
+  font-size: 7.5px;
+  letter-spacing: .08em;
+  color: #636b73;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.shell-bender-launch {
+  display: block;
+  width: 100%;
+  text-decoration: none;
+  text-align: center;
+  padding: 13px 8px 11px;
+  border-radius: 4px;
+  border: 1px solid #3d080a;
+  background: radial-gradient(120% 90% at 50% 8%, #da262d 0%, #9e151b 50%, #680c10 100%);
+  color: #ffdfe0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -3px 6px rgba(0,0,0,.6),
+    0 3px 8px rgba(0,0,0,.7);
+  transition: transform .06s, box-shadow .06s;
+  cursor: pointer;
+}
+.shell-bender-launch:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.2),
+    inset 0 -1px 3px rgba(0,0,0,.7),
+    0 1px 4px rgba(0,0,0,.7);
+}
+.shell-bender-launch b {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .24em;
+  text-indent: .24em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.shell-bender-launch em {
+  display: block;
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: .22em;
+  opacity: .8;
+  margin-top: 3px;
+  text-indent: .22em;
+}
+
+/* ── system status panel ──────────────────────────────────── */
+.shell-panel--sys {
+  width: 290px;
+}
+.shell-panel--sys .shell-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shell-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  width: 100%;
+}
+.shell-status-item {
+  background: linear-gradient(180deg, #090a0c 0%, #111316 100%);
+  border: 1px solid #000;
+  border-top-color: #25292f;
+  border-radius: 2px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shell-status-item--wide {
+  grid-column: span 2;
+}
+.shell-status-item__k {
+  font-size: 6.5px;
+  letter-spacing: .16em;
+  color: var(--dim, #6d747b);
+  font-weight: 700;
+}
+.shell-status-item__v {
+  font: 700 9.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .08em;
+  color: #7fe6a4;
+  text-shadow: 0 0 6px rgba(57,211,83,.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shell-status-actions {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+}
+.shell-btn {
+  flex: 1 1 0;
+  min-height: 26px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #2b2f34 0%, #191c1f 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 2px 4px rgba(0,0,0,.6);
+  color: var(--mid, #9aa2aa);
+  padding: 4px 4px;
+  font: inherit;
+}
+.shell-btn b {
+  display: block;
+  font-size: 7.5px;
+  letter-spacing: .12em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.shell-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.7);
+}
+.shell-btn--red {
+  background: linear-gradient(180deg, #4d1518 0%, #2b0b0d 100%);
+  color: #ffc9cb;
+}
+
+/* ── about panel ──────────────────────────────────────────── */
+.shell-panel--about {
+  width: 290px;
+}
+.shell-about-content {
+  font: 400 8.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #828a94;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.shell-placeholder-note {
+  font-weight: 700;
+  color: var(--amb, #f0a020);
+  letter-spacing: .10em;
+  border: 1px dashed rgba(240,160,32,.35);
+  padding: 4px 6px;
+  border-radius: 2px;
+  background: rgba(240,160,32,.06);
+}
+.shell-about-content a {
+  color: var(--blu, #4fc8ff);
+  text-decoration: underline;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE LAYOUT (<900px) — FIRST-CLASS PHONE INTERACTION LAYER
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  html, body {
+    overflow: hidden;
+  }
+
+  .shell-head {
+    height: 42px;
+    padding: 0 10px;
+  }
+  .shell-head__name {
+    font-size: 12px;
+    letter-spacing: .18em;
+  }
+  .shell-head__sub {
+    font-size: 6px;
+    letter-spacing: .16em;
+  }
+  .shell-head__center {
+    display: none; /* conserve space on small screen */
+  }
+  .shell-head__etch {
+    top: 42px;
+  }
+
+  .shell-desktop {
+    position: absolute;
+    top: 44px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
+    padding: 10px 10px calc(40px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .shell-panel {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    touch-action: pan-y;
+  }
+
+  .shell-panel__header {
+    cursor: default;
+    padding: 10px 10px;
+  }
+
+  .shell-panel__path {
+    font-size: 11px;
+  }
+
+  .shell-panel__act-btn {
+    min-height: 38px;
+    min-width: 68px;
+    padding: 8px 12px;
+    font-size: 9px;
+  }
+
+  .shell-panel__body {
+    padding: 14px 10px;
+    gap: 12px 14px;
+  }
+
+  .shell-btn {
+    min-height: 44px;
+    padding: 10px 8px;
+  }
+  .shell-btn b {
+    font-size: 8.5px;
+  }
+
+  .shell-bender-launch {
+    min-height: 52px;
+    padding: 16px 12px;
+  }
+  .shell-bender-launch b {
+    font-size: 12px;
+  }
+}
