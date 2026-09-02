@@ -272,3 +272,36 @@ heavy one, and the only place a dependency would be needed).
 - R15 holds — root is a shell, circuit bend is one slice inside it.
 - R17 holds — one WebGL context, total.
 - The style stays ratified. The AVOID list still binds.
+
+---
+
+## TOUCHDESIGNER — 2026-09-02 (A1: *"i have touch designer take a look at that"*)
+
+Installed at `/Applications/TouchDesigner.app` (2025.33070). `.tox` files are a proprietary
+compressed container — not zip, not tar, no zlib chunks — so the palette networks cannot be
+read from disk. Not worth cracking; the vocabulary is the point and it ships readable.
+
+**93 image operators (TOPs)** shipped in `Resources/tfs/Samples/Learn/OPSnippets/Snippets/TOP`.
+
+### The finding — TD and Mosh are different KINDS of vocabulary
+| Mosh-Pro | TouchDesigner |
+|---|---|
+| 64 named **looks** — "Data Mosh", "Bad TV", "Super 8" | 93 named **primitives** — `displace`, `remap`, `lookup`, `timemachine` |
+| finished effects you dial | operators you wire together |
+
+That is why Alison Rico's work does not look like anyone's preset — she composes primitives.
+Mosh answers *what effects exist*; TD answers *what an effect is made of*.
+
+### Six TD operators with no equivalent in ours OR Mosh's list — the compositional ones
+| operator | what it is | why it matters |
+|---|---|---|
+| `timemachine` | per-pixel time offset driven by a MAP texture | slit-scan generalised — any greyscale image becomes a time-displacement field |
+| `spectrum` | FFT of the image | frequency-domain editing. Nothing in a browser glitch app does this |
+| `lumablur` | blur radius driven by luminance | bright areas smear, dark stay sharp |
+| `displace` / `remap` | push pixels using a SECOND texture as the vector field | the general case of every displacement effect we have |
+| `slope` / `normalmap` | gradient field from brightness | drives lighting and directional effects |
+| `lookup` | LUT colour remap through a ramp texture | the general case of Rainbow, InstaColor, DuoTone |
+
+**A6 — hypothesis, not ratified:** the deeper seam is the primitives, not more named looks.
+`displace`, `remap` and `lookup` each subsume a whole column of Mosh's list, and `timemachine`
+and `spectrum` are things nobody has in a browser. Named for later; the current lane is R18.
