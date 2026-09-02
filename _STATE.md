@@ -229,3 +229,46 @@ by the provenance claims. The provenance claims were decoration.
 4. Optional stacking — one build at a time is the current rule; he said "more is better".
 5. The 12-bend matrix re-render with motion, to confirm the four corrections took.
 6. Front-door vocabulary: pin-pairs describe the BEND slice only, now that bending is one of many.
+
+---
+
+## CORRECTION — 2026-09-02 · R16 REVOKED
+
+**A1 verbatim:** *"oh bro i meant the rest of the features from mosh are the other slices"*
+
+Classified **CORRECT**. R16 was my A5 inference — "small single-purpose instruments cut from
+the engine" — and it was wrong. I named the tiles MOSH / SORT / NTSC / RASTER / TIME / DUO /
+STREAK out of my own head.
+
+### R18 (A1, supersedes R16) — the slices ARE Mosh-Pro's named effects
+The shell's tiles are Mosh's effect list, in Mosh's own taxonomy, with CIRCUIT BENDER as one
+further slice. Not my groupings. Their vocabulary, their categories, their parameter names.
+
+Ground truth pulled from `moshpro.app/guides/effects` — 67 effects in 11 categories:
+Reframing · Time-Based · Displacement and Glitch · Repetition and Symmetry · Tone and Contrast ·
+Dots and Pixels · Color · Optics · Screen and Film · Content Layers · Masking.
+
+### Audit against our engine — 39 HAVE / 22 GAP / 6 need a new input path
+**HAVE (39):** Transform · Transform 3D · Data Mosh · Feedback · Watercolor · Slit Scan ·
+Luma Mesh · Bulge · Slices · Stretch · Wave · Bad TV · Hard Glitch · Smear · Strobe ·
+Light Streak · Pixel Sort · Tile · Kaleido · Splitter · Solarize · Bleach · Sharpen · 8-Bit ·
+Half Tone · Dither · ASCII · Color Correction · DuoTone · Blur · Push Draw · Super8 · VHS ·
+CRT · ScanLines · Grain · Mask Blocks · ChromaKey · Media.
+
+**GAP — pure shader work, no new dependency (22):** Decimate · Optical Flow · Jitter · Melt ·
+Wobble · Shake · Soft Glitch · Mirror · Posterize · Edges · Pixelate · Dot Matrix · Polar ·
+LinoCut · Hue Cycle · Rainbow · InstaColor · RGB Shift · Vignette · Tilt Shift · Barrel Blur ·
+Glow.
+
+**NEEDS A NEW INPUT PATH — not blocked, just unbuilt (6):** Audio Visualizer (mic permission) ·
+Caption (2D text to texture) · Color Gradient (generated layer) · Mask from file (file input) ·
+Mask Draw (paint surface) · Remove Background (a segmentation model — the only genuinely
+heavy one, and the only place a dependency would be needed).
+
+**None of these six is a ceiling.** Five are input plumbing we have not written yet.
+
+### NON-DELTA
+- The instrument at `bender/` does not change. Twelve bends, REWIRE, the rack, all of it.
+- R15 holds — root is a shell, circuit bend is one slice inside it.
+- R17 holds — one WebGL context, total.
+- The style stays ratified. The AVOID list still binds.
