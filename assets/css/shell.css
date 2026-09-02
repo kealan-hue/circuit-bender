@@ -228,7 +228,7 @@ body.shell-body {
 .shell-panel {
   position: absolute;
   pointer-events: auto;
-  width: 278px;
+  width: 290px;
   background:
     repeating-linear-gradient(90deg, rgba(255,255,255,.01) 0 1px, transparent 1px 4px),
     linear-gradient(180deg, var(--panel-hi, #1f2226) 0%, var(--panel, #191b1f) 18%, #141619 100%);
@@ -244,6 +244,17 @@ body.shell-body {
   display: flex;
   flex-direction: column;
 }
+
+#panel-mosh   { width: 272px; }
+#panel-sort   { width: 312px; }
+#panel-ntsc   { width: 296px; }
+#panel-raster { width: 288px; }
+#panel-time   { width: 318px; }
+#panel-duo    { width: 290px; }
+#panel-streak { width: 304px; }
+#panel-bender { width: 268px; }
+#panel-status { width: 280px; }
+#panel-about  { width: 320px; }
 
 .shell-panel.is-dragging {
   opacity: 0.96;
@@ -262,6 +273,18 @@ body.shell-body {
     0 0 0 1px rgba(57,211,83,.25),
     0 12px 36px rgba(0,0,0,.85),
     0 0 18px rgba(57,211,83,.12);
+}
+
+/* ── panel collapse / expansion ─────────────────────────── */
+.shell-panel:not(.is-expanded) .shell-panel__body,
+.shell-panel:not(.is-expanded) .shell-panel__footer {
+  display: none !important;
+}
+
+.shell-panel:not(.is-expanded) .shell-panel__header {
+  border-bottom: none;
+  box-shadow: none;
+  border-radius: 2px;
 }
 
 /* ── panel header / titlebar ──────────────────────────────── */
@@ -586,27 +609,62 @@ body.shell-body {
   }
 
   .shell-head {
-    height: 42px;
-    padding: 0 10px;
+    height: 46px;
+    padding: 0 8px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .shell-head__left {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+  .shell-head__mark svg {
+    width: 20px;
+    height: 20px;
   }
   .shell-head__name {
-    font-size: 12px;
-    letter-spacing: .18em;
+    font-size: 11px;
+    letter-spacing: .12em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .shell-head__sub {
     font-size: 6px;
-    letter-spacing: .16em;
+    letter-spacing: .10em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .shell-head__center {
     display: none; /* conserve space on small screen */
   }
+  .shell-head__right {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .shell-head__plate {
+    display: none; /* Drop serial & tele plate from mobile topbar to guarantee no horizontal overflow */
+  }
+  .shell-head__btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 9px !important;
+  }
   .shell-head__etch {
-    top: 42px;
+    top: 46px;
   }
 
   .shell-desktop {
     position: absolute;
-    top: 44px;
+    top: 48px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -616,7 +674,7 @@ body.shell-body {
     padding: 10px 10px calc(40px + env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
 
   .shell-panel {
@@ -631,19 +689,26 @@ body.shell-body {
   }
 
   .shell-panel__header {
-    cursor: default;
-    padding: 10px 10px;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .shell-panel__path {
-    font-size: 11px;
+    font-size: 10.5px;
   }
 
   .shell-panel__act-btn {
-    min-height: 38px;
-    min-width: 68px;
-    padding: 8px 12px;
-    font-size: 9px;
+    min-height: 44px !important;
+    min-width: 68px !important;
+    padding: 0 12px !important;
+    font-size: 9px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .shell-panel__body {
@@ -651,19 +716,76 @@ body.shell-body {
     gap: 12px 14px;
   }
 
+  /* Universal >= 44x44 mobile touch targets */
+  .knob {
+    --d: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .num {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 9.5px !important;
+    padding: 4px 6px !important;
+  }
+
+  .ctl--slide {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .slide {
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 4px 6px !important;
+  }
+
+  .slide__mark {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 8.5px !important;
+    padding: 0 6px !important;
+  }
+
   .shell-btn {
-    min-height: 44px;
-    padding: 10px 8px;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 10px 8px !important;
   }
   .shell-btn b {
     font-size: 8.5px;
   }
 
   .shell-bender-launch {
-    min-height: 52px;
-    padding: 16px 12px;
+    min-height: 52px !important;
+    min-width: 44px !important;
+    padding: 16px 12px !important;
   }
   .shell-bender-launch b {
     font-size: 12px;
+  }
+
+  .shell-about-content a {
+    display: inline-block !important;
+    min-height: 44px !important;
+    line-height: 44px !important;
+    padding: 0 4px !important;
+  }
+
+  button, input, select, a, .knob, .slide {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

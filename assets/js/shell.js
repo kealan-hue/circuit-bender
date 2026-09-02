@@ -321,12 +321,13 @@ function activateBuild(buildId, silent) {
   if (buildId === 'streak') activeParams.s8Burn = 0.40;
   if (buildId === 'raster') activeParams.scopeGlow = 0.60;
 
-  /* Update all panel UI active states */
+  /* Update all panel UI active & expanded states */
   $$('.shell-panel').forEach(panel => {
     const isThis = panel.dataset.build === buildId;
     panel.classList.toggle('is-active', isThis);
+    panel.classList.toggle('is-expanded', isThis);
     const btn = panel.querySelector('.shell-panel__act-btn');
-    if (btn) {
+    if (btn && BUILDS[panel.dataset.build]) {
       btn.textContent = isThis ? 'ACTIVE' : 'SELECT';
       btn.classList.toggle('on', isThis);
     }
@@ -338,6 +339,26 @@ function activateBuild(buildId, silent) {
 
   const sysBuild = $('#sys-build');
   if (sysBuild) sysBuild.textContent = BUILDS[buildId].path;
+
+  /* Re-layout desktop panels */
+  layoutDesktopPanels();
+}
+
+function togglePanel(panel) {
+  const bId = panel.dataset.build;
+  if (bId && BUILDS[bId]) {
+    activateBuild(bId);
+    return;
+  }
+  /* Auxiliary panels (status, about, bender) */
+  const isExp = panel.classList.contains('is-expanded');
+  panel.classList.toggle('is-expanded', !isExp);
+  panel.classList.toggle('is-active', !isExp);
+  const btn = panel.querySelector('.shell-panel__act-btn');
+  if (btn) {
+    btn.classList.toggle('on', !isExp);
+  }
+  layoutDesktopPanels();
 }
 
 function updateParam(buildId, paramId, val) {
@@ -412,7 +433,7 @@ function bringToFront(panel) {
 }
 
 function initDraggable(panel, handle) {
-  let startX = 0, startY = 0, origX = 0, origY = 0, dragging = false;
+  let startX = 0, startY = 0, origX = 0, origY = 0, dragging = false, didMove = false;
 
   handle.addEventListener('pointerdown', e => {
     if (window.innerWidth <= 900) return; /* Mobile: drag disabled */
@@ -421,6 +442,7 @@ function initDraggable(panel, handle) {
 
     bringToFront(panel);
     dragging = true;
+    didMove = false;
     startX = e.clientX;
     startY = e.clientY;
 
@@ -437,6 +459,7 @@ function initDraggable(panel, handle) {
     if (!dragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didMove = true;
 
     let nx = origX + dx;
     let ny = origY + dy;
@@ -454,6 +477,7 @@ function initDraggable(panel, handle) {
     panel.style.top = ny + 'px';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
+    panel._dragged = true;
   });
 
   function endDrag(e) {
@@ -461,6 +485,10 @@ function initDraggable(panel, handle) {
     dragging = false;
     panel.classList.remove('is-dragging');
     try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+
+    if (!didMove) {
+      togglePanel(panel);
+    }
   }
 
   handle.addEventListener('pointerup', endDrag);
@@ -484,24 +512,22 @@ function layoutDesktopPanels() {
   }
 
   const panels = $$('.shell-desktop .shell-panel');
-  const padX = 20, padY = 54, gapX = 16, gapY = 16;
-  const colW = 280;
-  const numCols = Math.max(1, Math.min(4, Math.floor((window.innerWidth - padX * 2 + gapX) / (colW + gapX))));
-  const colHeights = new Array(numCols).fill(padY);
+  let curY = 16;
+  const padX = 24;
+  const xOffsets = [0, 14, -6, 16, 4, 8, -4, 18, 2, 10];
 
   panels.forEach((p, idx) => {
-    const col = idx % numCols;
-    const x = padX + col * (colW + gapX);
-    const y = colHeights[col];
+    if (!p._dragged) {
+      const x = padX + (xOffsets[idx % xOffsets.length] || 0);
+      p.style.left = Math.max(12, x) + 'px';
+      p.style.top = curY + 'px';
+      p.style.right = 'auto';
+      p.style.bottom = 'auto';
+      p.style.zIndex = p.classList.contains('is-expanded') ? 30 : (10 + idx);
+    }
 
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    p.style.right = 'auto';
-    p.style.bottom = 'auto';
-    p.style.zIndex = 10 + idx;
-
-    const h = p.offsetHeight || 220;
-    colHeights[col] += h + gapY;
+    const h = p.offsetHeight || (p.classList.contains('is-expanded') ? 180 : 32);
+    curY += h + 6;
   });
 }
 
@@ -575,20 +601,26 @@ function init() {
   /* Build widgets inside panels */
   buildPanelWidgets();
 
-  /* Wire select buttons */
+  /* Wire select & action buttons and headers */
   $$('.shell-panel').forEach(panel => {
-    const bId = panel.dataset.build;
     const btn = panel.querySelector('.shell-panel__act-btn');
-    if (btn && bId && BUILDS[bId]) {
+    if (btn) {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        activateBuild(bId);
+        togglePanel(panel);
       });
     }
 
     const header = panel.querySelector('.shell-panel__header');
     if (header) {
       initDraggable(panel, header);
+      /* For mobile touch: tapping header toggles panel */
+      header.addEventListener('click', e => {
+        if (window.innerWidth <= 900) {
+          if (e.target.closest('button, a, input, select')) return;
+          togglePanel(panel);
+        }
+      });
     }
   });
 
