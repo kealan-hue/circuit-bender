@@ -864,6 +864,17 @@ uniform float uEdge, uEdgeThick, uEdgePass;
 uniform float uPix, uPixX, uPixY;
 uniform float uDot, uDotCount, uDotSize, uDotBlur;
 uniform float uLino, uLinoScale, uLinoAngle;
+uniform float uHue, uHueSpeed;
+uniform float uRain, uRainOffset, uRainAngle, uRainSpeed;
+uniform int   uRainPal;
+uniform float uInsta;
+uniform int   uInstaStyle;
+uniform float uRgbs, uRgbsAngle;
+uniform int   uRgbsMode;
+uniform float uVig, uVigFeather, uVigRound;
+uniform float uTilt, uTiltPos;
+uniform float uBarrel, uBarrelInv;
+uniform float uGlow, uGlowCut;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
 float bayer(ivec2 p){
@@ -885,6 +896,26 @@ void main(){
   vec3 col = vec3(texture(uTex, cl + vec2(bleed,0.0)).r,
                   texture(uTex, cl).g,
                   texture(uTex, cl - vec2(bleed,0.0)).b);
+
+  /* ── RGB SHIFT — spatial channel misregistration (linear, radial, barrel) ── */
+  if(uRgbs > 0.002){
+    vec2 pS = cl - 0.5;
+    float rS = length(pS);
+    vec2 dirS = vec2(cos(uRgbsAngle * TAU), sin(uRgbsAngle * TAU));
+    vec2 shift = vec2(0.0);
+    if(uRgbsMode == 0){        /* LINEAR: along angle */
+      shift = dirS * uRgbs * 0.04;
+    } else if(uRgbsMode == 1){ /* RADIAL: grows with distance from center */
+      vec2 rVec = (rS > 1e-4) ? (pS / rS) : vec2(0.0);
+      shift = rVec * (rS * uRgbs * 0.06);
+    } else {                   /* BARREL: follows lens curve */
+      shift = pS * (rS * rS * uRgbs * 0.12);
+    }
+    float rCh = texture(uTex, clamp(cl + shift, 0.0, 1.0)).r;
+    float gCh = texture(uTex, cl).g;
+    float bCh = texture(uTex, clamp(cl - shift, 0.0, 1.0)).b;
+    col = mix(col, vec3(rCh, gCh, bCh), min(1.0, uRgbs * 1.5));
+  }
 
   /* ── STROBE — time-quantised frame hold and drop ── */
   if(uStrobe > 0.002){
@@ -934,6 +965,12 @@ void main(){
     V = mag * sin(folded);
     vec3 back = vec3(Y + 1.140*V, Y - 0.395*U - 0.581*V, Y + 2.032*U);
     col = clamp(back, 0.0, 1.0);
+  }
+
+  /* ── HUE CYCLE — luma-preserving color wheel rotation ── */
+  if(uHue > 0.002 || uHueSpeed > 0.002){
+    float hAng = (uHue + uTime * uHueSpeed * 0.5) * TAU;
+    col = clamp(hueRot(col, hAng), 0.0, 1.0);
   }
 
   /* ── ROUTE — walk the colour channels around onto each other's wires.
@@ -990,6 +1027,30 @@ void main(){
     float numLevels = max(2.0, floor(mix(2.0, 16.0, uPosterLevels) + 0.5));
     vec3 postCol = floor(col * (numLevels - 1.0) + 0.5) / (numLevels - 1.0);
     col = mix(col, postCol, uPoster);
+  }
+
+  /* ── RAINBOW — thermal/spectrum cosine palette tone mapping ── */
+  if(uRain > 0.002){
+    float bTone = luma(col);
+    vec2 rDir = vec2(cos(uRainAngle * TAU), sin(uRainAngle * TAU));
+    float rGrad = dot(cl - 0.5, rDir);
+    float rT = bTone + uRainOffset + rGrad + uTime * uRainSpeed * 0.5;
+    vec3 palA, palB, palC, palD;
+    if(uRainPal == 0){        /* THERMAL */
+      palA = vec3(0.5, 0.5, 0.5); palB = vec3(0.5, 0.5, 0.5);
+      palC = vec3(1.0, 1.0, 1.0); palD = vec3(0.00, 0.10, 0.20);
+    } else if(uRainPal == 1){ /* SPECTRUM */
+      palA = vec3(0.5, 0.5, 0.5); palB = vec3(0.5, 0.5, 0.5);
+      palC = vec3(1.0, 1.0, 1.0); palD = vec3(0.00, 0.333, 0.667);
+    } else if(uRainPal == 2){ /* ICE */
+      palA = vec3(0.25, 0.55, 0.85); palB = vec3(0.25, 0.35, 0.15);
+      palC = vec3(1.0, 1.0, 1.0);    palD = vec3(0.00, 0.10, 0.20);
+    } else {                  /* TOXIC */
+      palA = vec3(0.50, 0.60, 0.15); palB = vec3(0.45, 0.50, 0.20);
+      palC = vec3(1.0, 1.0, 1.0);    palD = vec3(0.55, 0.15, 0.75);
+    }
+    vec3 rainCol = clamp(palA + palB * cos(TAU * (palC * rT + palD)), 0.0, 1.0);
+    col = mix(col, rainCol, uRain);
   }
 
   /* ── HALFTONE — CMY screen angles in polar ── */
@@ -1211,6 +1272,49 @@ void main(){
     col = clamp(col + shLap * uSharpen * 1.3, 0.0, 1.0);
   }
 
+  /* ── TILT SHIFT — selective focus plane with miniature blur (6 taps) ── */
+  if(uTilt > 0.002){
+    float distY = abs(cl.y - uTiltPos);
+    float tBlur = smoothstep(0.04, 0.32, distY) * uTilt;
+    if(tBlur > 0.002){
+      float rT = tBlur * 16.0 / uRes.y;
+      vec2 tOff[6] = vec2[6](
+        vec2(0.0, 1.0), vec2(0.0, -1.0),
+        vec2(0.866, 0.5), vec2(-0.866, 0.5),
+        vec2(0.866, -0.5), vec2(-0.866, -0.5)
+      );
+      vec3 tAcc = col;
+      for(int i = 0; i < 6; i++){
+        tAcc += texture(uTex, clamp(cl + tOff[i] * rT, 0.0, 1.0)).rgb;
+      }
+      col = tAcc / 7.0;
+    }
+  }
+
+  /* ── BARREL BLUR — radial softening with chromatic dispersion (6 taps) ── */
+  if(uBarrel > 0.002){
+    vec2 pB = cl - 0.5;
+    float rB = length(pB);
+    float bAmt = mix(rB * 1.4, max(0.0, 0.7 - rB * 1.4), uBarrelInv) * uBarrel;
+    if(bAmt > 0.002){
+      vec2 dirB = (rB > 1e-4) ? (pB / rB) : vec2(0.0);
+      float rStep = bAmt * 0.035;
+      vec3 bAcc = col;
+      const float weights[6] = float[6](-1.0, -0.6, -0.2, 0.2, 0.6, 1.0);
+      for(int i = 0; i < 6; i++){
+        float s = weights[i];
+        vec2 offR = cl + dirB * (s * 1.25) * rStep;
+        vec2 offG = cl + dirB * (s * 1.00) * rStep;
+        vec2 offB = cl + dirB * (s * 0.75) * rStep;
+        float rSample = texture(uTex, clamp(offR, 0.0, 1.0)).r;
+        float gSample = texture(uTex, clamp(offG, 0.0, 1.0)).g;
+        float bSample = texture(uTex, clamp(offB, 0.0, 1.0)).b;
+        bAcc += vec3(rSample, gSample, bSample);
+      }
+      col = bAcc / 7.0;
+    }
+  }
+
   /* ── EDGES — Sobel line drawing with passthru and thickness ── */
   if(uEdge > 0.002){
     vec2 eStep = (1.0 + uEdgeThick * 4.0) / uRes;
@@ -1254,6 +1358,54 @@ void main(){
     col = clamp(col, 0.0, 1.0);
   }
 
+  /* ── INSTACOLOR — 4 preset color grades (lift/gamma/gain + split tone) ── */
+  if(uInsta > 0.002){
+    vec3 gLift, gGamma, gGain, sShadow, sHigh;
+    float desat = 1.0;
+    if(uInstaStyle == 0){        /* VINTAGE */
+      gLift = vec3(0.08, 0.05, 0.01); gGamma = vec3(0.92, 0.98, 1.15); gGain = vec3(1.12, 1.04, 0.86);
+      sShadow = vec3(1.10, 0.95, 0.80); sHigh = vec3(1.05, 1.02, 0.90);
+    } else if(uInstaStyle == 1){ /* CINEMA */
+      gLift = vec3(-0.03, 0.02, 0.08); gGamma = vec3(1.18, 1.02, 0.88); gGain = vec3(1.22, 1.00, 0.78);
+      sShadow = vec3(0.80, 1.05, 1.25); sHigh = vec3(1.25, 1.05, 0.80);
+    } else if(uInstaStyle == 2){ /* NOIR */
+      gLift = vec3(0.10, 0.10, 0.12); gGamma = vec3(1.35, 1.35, 1.40); gGain = vec3(1.25, 1.25, 1.30);
+      sShadow = vec3(0.85, 0.92, 1.10); sHigh = vec3(1.05, 1.02, 0.95);
+      desat = 0.20;
+    } else {                     /* SUMMER */
+      gLift = vec3(-0.02, 0.04, 0.08); gGamma = vec3(0.85, 0.88, 0.90); gGain = vec3(1.12, 1.18, 1.22);
+      sShadow = vec3(0.80, 1.10, 1.22); sHigh = vec3(1.02, 1.06, 1.10);
+      desat = 1.30;
+    }
+    vec3 base = mix(vec3(luma(col)), col, desat);
+    vec3 graded = pow(max(vec3(0.0), base * gGain + gLift * (1.0 - base)), gGamma);
+    float lumG = luma(graded);
+    vec3 splitTone = mix(sShadow, sHigh, lumG);
+    graded = clamp(graded * splitTone, 0.0, 1.0);
+    col = mix(col, graded, uInsta);
+  }
+
+  /* ── GLOW — highlight bloom spillover (8 taps) ── */
+  if(uGlow > 0.002){
+    float cut = uGlowCut * 0.85;
+    vec2 gStep = (2.0 + uGlow * 10.0) / uRes;
+    vec2 gOff[8] = vec2[8](
+      vec2( 1.0,  0.0), vec2(-1.0,  0.0),
+      vec2( 0.0,  1.0), vec2( 0.0, -1.0),
+      vec2( 0.707,  0.707), vec2(-0.707,  0.707),
+      vec2( 0.707, -0.707), vec2(-0.707, -0.707)
+    );
+    vec3 bloomAcc = vec3(0.0);
+    for(int i = 0; i < 8; i++){
+      vec3 sCol = texture(uTex, clamp(cl + gOff[i] * gStep, 0.0, 1.0)).rgb;
+      float sL = luma(sCol);
+      float excess = max(0.0, sL - cut) / max(0.001, 1.0 - cut);
+      bloomAcc += sCol * excess;
+    }
+    col += (bloomAcc / 8.0) * uGlow * 2.2;
+    col = clamp(col, 0.0, 1.0);
+  }
+
   /* ── GRAIN — luminance-dependent film grain ── */
   if(uGrain > 0.002){
     float gScale = max(1.0, floor(mix(1.0, 5.0, uGrainSize)));
@@ -1285,6 +1437,16 @@ void main(){
     }
     vec3 flare = (streakAcc / max(1e-4, totalW)) * vec3(0.4, 0.7, 1.3) * 3.8;
     col += flare * uStreak;
+  }
+
+  /* ── VIGNETTE — superellipse corner falloff ── */
+  if(uVig > 0.002){
+    float nExp = mix(2.0, 10.0, uVigRound);
+    vec2 pV = abs(cl - 0.5) * 2.0;
+    float dV = pow(pow(pV.x, nExp) + pow(pV.y, nExp), 1.0 / nExp);
+    float fWidth = mix(0.15, 0.85, uVigFeather);
+    float vigMask = smoothstep(1.0, max(0.01, 1.0 - fWidth), dV);
+    col = mix(col, col * vigMask, uVig);
   }
 
   if(uScan > 0.002){
@@ -1775,6 +1937,27 @@ function Engine(canvas){
       gl.uniform1f(q.uLino, p.lino);
       gl.uniform1f(q.uLinoScale, p.linoScale);
       gl.uniform1f(q.uLinoAngle, p.linoAngle);
+      gl.uniform1f(q.uHue, p.hue);
+      gl.uniform1f(q.uHueSpeed, p.hueSpeed);
+      gl.uniform1f(q.uRain, p.rain);
+      gl.uniform1f(q.uRainOffset, p.rainOffset);
+      gl.uniform1f(q.uRainAngle, p.rainAngle);
+      gl.uniform1f(q.uRainSpeed, p.rainSpeed);
+      gl.uniform1i(q.uRainPal, p.rainPal|0);
+      gl.uniform1f(q.uInsta, p.insta);
+      gl.uniform1i(q.uInstaStyle, p.instaStyle|0);
+      gl.uniform1f(q.uRgbs, p.rgbs);
+      gl.uniform1f(q.uRgbsAngle, p.rgbsAngle);
+      gl.uniform1i(q.uRgbsMode, p.rgbsMode|0);
+      gl.uniform1f(q.uVig, p.vig);
+      gl.uniform1f(q.uVigFeather, p.vigFeather);
+      gl.uniform1f(q.uVigRound, p.vigRound);
+      gl.uniform1f(q.uTilt, p.tilt);
+      gl.uniform1f(q.uTiltPos, p.tiltPos == null ? 0.5 : p.tiltPos);
+      gl.uniform1f(q.uBarrel, p.barrel);
+      gl.uniform1f(q.uBarrelInv, p.barrelInv);
+      gl.uniform1f(q.uGlow, p.glow);
+      gl.uniform1f(q.uGlowCut, p.glowCut);
       draw(prev);
 
       gl.useProgram(P.copy.p);

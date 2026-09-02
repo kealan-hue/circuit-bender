@@ -255,10 +255,10 @@ Light Streak · Pixel Sort · Tile · Kaleido · Splitter · Solarize · Bleach 
 Half Tone · Dither · ASCII · Color Correction · DuoTone · Blur · Push Draw · Super8 · VHS ·
 CRT · ScanLines · Grain · Mask Blocks · ChromaKey · Media.
 
-**GAP — pure shader work, no new dependency (22):** Decimate · Optical Flow · Jitter · Melt ·
-Wobble · Shake · Soft Glitch · Mirror · Posterize · Edges · Pixelate · Dot Matrix · Polar ·
-LinoCut · Hue Cycle · Rainbow · InstaColor · RGB Shift · Vignette · Tilt Shift · Barrel Blur ·
-Glow.
+**GAP — CLOSED 2026-09-02. All 22 built and measured.** Decimate · Optical Flow · Jitter ·
+Melt · Wobble · Shake · Soft Glitch · Mirror · Posterize · Edges · Pixelate · Dot Matrix ·
+Polar · LinoCut · Hue Cycle · Rainbow · InstaColor · RGB Shift · Vignette · Tilt Shift ·
+Barrel Blur · Glow. **61 effects now in the catalogue.**
 
 **NEEDS A NEW INPUT PATH — not blocked, just unbuilt (6):** Audio Visualizer (mic permission) ·
 Caption (2D text to texture) · Color Gradient (generated layer) · Mask from file (file input) ·
@@ -305,3 +305,44 @@ Mosh answers *what effects exist*; TD answers *what an effect is made of*.
 **A6 — hypothesis, not ratified:** the deeper seam is the primitives, not more named looks.
 `displace`, `remap` and `lookup` each subsume a whole column of Mosh's list, and `timemachine`
 and `spectrum` are things nobody has in a browser. Named for later; the current lane is R18.
+
+---
+
+## R18 DELIVERED — all 22 gap effects built, 61 in the catalogue (2026-09-02)
+
+Three batches through Gemini, each verified here against a synthetic moving source with a
+control that reads exactly 0.0% (same params rendered twice).
+
+### Three real defects found and fixed
+| defect | evidence | fix |
+|---|---|---|
+| Decimate held no frames | 0/12 at every speed, and holding frames is the whole effect | ring index steps instead of sliding; `decSpeed 0.05` holds 4/12, `0.95` holds 0/12 |
+| Jitter under-powered | 6.6% at full amount | 16.1% median at full, monotonic across the range |
+| InstaColor SUMMER = VINTAGE | 4.4% apart while every other pair was 95–97% | SUMMER re-authored cool/high-key; worst pair now 79.6% |
+
+### Three FALSE alarms — my measurement, not the code
+Recorded because the pattern is the recurring failure of this whole session.
+1. **Jitter "non-monotonic"** — it is a *random* effect. Three samples cannot separate broken
+   from noisy; spread at full amount is 2.1 to 20.2. Ten samples and a median: monotonic.
+2. **Pixelate "weak at 5.5%"** — I tested one mild setting. Block sweep: 18.1% at big blocks,
+   2.0% at small. Correct, and scales the right way.
+3. **Barrel Blur "does not fringe"** — my metric measured the *source's* colour. On a greyscale
+   source, where any channel separation must be fringing: clean edge 6.78, barrel edge 25.92,
+   and `barrelInv` flips it to the centre (26.8 / 5.03). It fringes correctly.
+
+**The control is the only thing that catches this.** Render the same params twice and confirm
+0.0% before believing any number. Six measurement errors this session, all mine.
+
+### Cost, 640x480, median of five runs
+| state | ms/frame |
+|---|---|
+| neutral, nothing on | **0.56** |
+| everything except pixel sort | **4.93** |
+| everything including 44 sort passes | **5.91** |
+
+170 engine params. The guarded branches hold — a stage at 0 costs nothing.
+
+### Remaining, and none of it is a ceiling
+Six of Mosh's 67 need an input path we have not written: Audio Visualizer (mic), Caption (2D
+text to texture), Color Gradient (generated layer), Mask from file (file input), Mask Draw
+(paint surface), Remove Background (a segmentation model — the only one needing a dependency).

@@ -41,9 +41,11 @@ const V = {
   wob:0, wobSize:0.5, wobSpeed:0.5,
   shake:0, shakeSpeed:0.5,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
+  tilt:0, tiltPos:0.5, barrel:0, barrelInv:0, glow:0, glowCut:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
   soft:0, softSpeed:0.5,
+  rgbs:0, rgbsAngle:0, rgbsMode:0,
   addr:0, clock:0, bitSwap:0, bus:0, starve:0,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
@@ -58,6 +60,7 @@ const V = {
   grain:0, grainSize:0.5,
   sharpen:0, blur:0, bleach:0,
   ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
+  insta:0, instaStyle:0,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   pix:0, pixX:0.5, pixY:0.5, dot:0, dotCount:0.5, dotSize:0.5, dotBlur:0.1,
   polar:0, polarRadius:0.2, polarSeg:0,
@@ -65,7 +68,8 @@ const V = {
   poster:0, posterLevels:0.5, edge:0, edgeThick:0.5, edgePass:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0,
-  post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
+  post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0,
+  hue:0, hueSpeed:0, rain:0, rainOffset:0, rainAngle:0, rainSpeed:0.5, rainPal:0, vig:0, vigFeather:0.5, vigRound:0
 };
 /* KILL restores NEUTRAL — a kill switch that resets to a damaged picture is
    a lie. The resting look is applied once at boot and is not what KILL means. */
@@ -78,8 +82,10 @@ const NEUTRAL = Object.assign({}, V, {
   wob:0, wobSize:0.5, wobSpeed:0.5,
   shake:0, shakeSpeed:0.5,
   soft:0, softSpeed:0.5,
+  rgbs:0, rgbsAngle:0, rgbsMode:0,
   mirror:0, mirrorPos:0.5, mirrorSide:0,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
+  tilt:0, tiltPos:0.5, barrel:0, barrelInv:0, glow:0, glowCut:0.5,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
   stretch:0, stretchWave:0, stretchJag:0,
@@ -92,12 +98,14 @@ const NEUTRAL = Object.assign({}, V, {
   grain:0, grainSize:0.5,
   sharpen:0, blur:0, bleach:0,
   ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
+  insta:0, instaStyle:0,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
   pix:0, pixX:0.5, pixY:0.5, dot:0, dotCount:0.5, dotSize:0.5, dotBlur:0.1,
   polar:0, polarRadius:0.2, polarSeg:0,
   lino:0, linoScale:0.5, linoAngle:0.25,
   poster:0, posterLevels:0.5, edge:0, edgeThick:0.5, edgePass:0,
-  streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0
+  streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0,
+  hue:0, hueSpeed:0, rain:0, rainOffset:0, rainAngle:0, rainSpeed:0.5, rainPal:0, vig:0, vigFeather:0.5, vigRound:0
 });
 const DEF = NEUTRAL;
 
@@ -110,19 +118,20 @@ const STAGE = {
   regen:  ['feed','droste'],
   tape:   ['headsw','wave','chromaLoss'],
   comp:   ['ntsc','ghost'],
-  sensor: ['smear','bitAmt','soft','softSpeed'],
+  sensor: ['smear','bitAmt','soft','softSpeed','rgbs','rgbsAngle','rgbsMode'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll',
            'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','mirror','mirrorPos','mirrorSide','tx','ty','tScale','tRot',
            'polar','polarRadius','polarSeg'],
-  beam:   ['water','waterBleed','scope','scopeLines','scopeGlow'],
+  beam:   ['water','waterBleed','scope','scopeLines','scopeGlow','tilt','tiltPos','barrel','barrelInv','glow','glowCut'],
   sort:   ['sort'],
   redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed',
            'pix','pixX','pixY','dot','dotCount','dotSize','dotBlur','lino','linoScale','linoAngle'],
   film:   ['s8','s8Dust','s8Burn','streak','streakAngle','over','overMode'],
-  grade:  ['strobe','strobeRate','grain','grainSize','sharpen','blur','bleach','ccLift','ccGamma','ccGain','ccTemp'],
+  grade:  ['strobe','strobeRate','grain','grainSize','sharpen','blur','bleach','ccLift','ccGamma','ccGain','ccTemp','insta','instaStyle'],
   out:    ['post','dither','half','scan','noise','sat','con','route','duo',
-           'poster','posterLevels','edge','edgeThick','edgePass']
+           'poster','posterLevels','edge','edgeThick','edgePass',
+           'hue','hueSpeed','rain','rainOffset','rainAngle','rainSpeed','rainPal','vig','vigFeather','vigRound']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
 
@@ -542,11 +551,14 @@ const RACK = [
     K('ntscSat','BURST',{ def:0.5 }),
     K('ghost','GHOST', { def:0 })
   ]},
-  { id:'sensor', name:'SENSOR', ctl:[
+  { id:'sensor', name:'SENSOR', wide:true, ctl:[
     K('smear','SMEAR', { def:0 }),
     K('bitAmt','BITS', { def:0 }),
     K('soft','SOFT GLITCH',{ def:0 }),
-    K('softSpeed','S SPEED',{ def:0.5 })
+    K('softSpeed','S SPEED',{ def:0.5 }),
+    K('rgbs',     'RGB SHIFT', { def:0 }),
+    K('rgbsAngle','R ANGLE',   { def:0 }),
+    S('rgbsMode', 'R MODE',    ['LINEAR','RADIAL','BARREL'])
   ]},
   /* the only stages here that corrupt the MACHINE rather than simulate a
      machine working normally on damaged media */
@@ -594,7 +606,13 @@ const RACK = [
     K('waterBleed', 'BLEED',      { def:0.5 }),
     K('scope',      'SCOPE',      { def:0 }),
     K('scopeLines', 'LINES',      { def:0.5 }),
-    K('scopeGlow',  'GLOW',       { def:0.5 })
+    K('scopeGlow',  'GLOW',       { def:0.5 }),
+    K('tilt',       'TILT SHIFT', { def:0 }),
+    K('tiltPos',    'T POS',      { def:0.5, detent:[0.5] }),
+    K('barrel',     'BARREL BLUR',{ def:0 }),
+    K('barrelInv',  'B INVERT',   { def:0 }),
+    K('glow',       'GLOW',       { def:0 }),
+    K('glowCut',    'G CUTOFF',   { def:0.5 })
   ]},
   { id:'sort', name:'SORT', note:'span, not threshold', wide:true, ctl:[
     F('sort','PASSES',  { def:0 }),
@@ -647,7 +665,9 @@ const RACK = [
     K('ccLift',    'LIFT',       { def:0.5, detent:[0.5] }),
     K('ccGamma',   'GAMMA',      { def:0.5, detent:[0.5] }),
     K('ccGain',    'GAIN',       { def:0.5, detent:[0.5] }),
-    K('ccTemp',    'TEMP',       { def:0.5, detent:[0.5] })
+    K('ccTemp',    'TEMP',       { def:0.5, detent:[0.5] }),
+    K('insta',     'INSTACOLOR', { def:0 }),
+    S('instaStyle','I STYLE',    ['VINTAGE','CINEMA','NOIR','SUMMER'])
   ]},
   { id:'out', name:'OUTPUT', wide:true, ctl:[
     K('post',        'QUANT',    { def:0 }),
@@ -660,7 +680,17 @@ const RACK = [
     K('half',        'HALFTONE', { def:0 }),
     K('scan',        'RASTER',   { def:0.18 }),
     K('noise',       'HISS',     { def:0.05 }),
-    S('inv',         'POLARITY', ['NORM','NEG','SOLAR'])
+    S('inv',         'POLARITY', ['NORM','NEG','SOLAR']),
+    K('hue',         'HUE CYCLE',{ def:0 }),
+    K('hueSpeed',    'H SPEED',  { def:0 }),
+    K('rain',        'RAINBOW',  { def:0 }),
+    K('rainOffset',  'R OFFSET', { def:0 }),
+    K('rainAngle',   'R ANGLE',  { def:0 }),
+    K('rainSpeed',   'R SPEED',  { def:0.5 }),
+    S('rainPal',     'R PALETTE',['THERMAL','SPECTRUM','ICE','TOXIC']),
+    K('vig',         'VIGNETTE', { def:0 }),
+    K('vigFeather',  'V FEATHER',{ def:0.5 }),
+    K('vigRound',    'V ROUND',  { def:0 })
   ]}
 ];
 
@@ -1250,8 +1280,8 @@ function selftest(passes){
   const keep = JSON.parse(JSON.stringify(V));
   const keepOn = Object.assign({}, ON);
   for(const k in STAGE) ON[k] = true;
-  const skipModes = { slitMode:1, sortKey:1, sortAxis:1, sortOrder:1, sortSpan:1, inv:1, cgaPal:1, overMode:1, mirrorSide:1 };
-  const midParams = { axis:0.5, keyHue:0.33, gateLo:0.25, gateHi:0.85, mirrorPos:0.5 };
+  const skipModes = { slitMode:1, sortKey:1, sortAxis:1, sortOrder:1, sortSpan:1, inv:1, cgaPal:1, overMode:1, mirrorSide:1, rainPal:1, instaStyle:1, rgbsMode:1 };
+  const midParams = { axis:0.5, keyHue:0.33, gateLo:0.25, gateHi:0.85, mirrorPos:0.5, tiltPos:0.5 };
   for(const k in V){
     if(skipModes[k]) continue;
     if(midParams[k] !== undefined){
