@@ -97,6 +97,15 @@ uniform float uBulge, uBulgeRadius;
 uniform float uPush, uPushAngle;
 uniform float uWave2, uWaveFreq, uWaveAngle;
 uniform float uTx, uTy, uTScale, uTRot;
+uniform float uFrame;
+uniform float uDec, uDecSpeed, uDecScale, uDecTint;
+uniform float uFlow, uFlowDist, uFlowSpeed;
+uniform float uJit, uJitSpeed, uJitAngle;
+uniform float uMelt, uMeltScale, uMeltSpeed;
+uniform float uWob, uWobSize, uWobSpeed;
+uniform float uShake, uShakeSpeed;
+uniform float uMirror, uMirrorPos;
+uniform int   uMirrorSide;
 
 vec3 ringAt(vec2 uv, float back){
   float s = mod(uHead - back + uRingN*4.0, uRingN);
@@ -121,6 +130,22 @@ void main(){
     float seg = TAU / N;
     a = abs(mod(a, seg) - seg*0.5) + t*0.05*uKal;
     uv = 0.5 + vec2(cos(a), sin(a)) * r;
+  }
+
+  /* ── MIRROR — half-frame reflection across position line ── */
+  if(uMirror > 0.002){
+    vec2 mUv = uv;
+    float pos = uMirrorPos;
+    if(uMirrorSide == 0){        /* Left kept, reflected to right */
+      if(mUv.x > pos) mUv.x = clamp(2.0 * pos - mUv.x, 0.0, 1.0);
+    } else if(uMirrorSide == 1){ /* Right kept, reflected to left */
+      if(mUv.x < pos) mUv.x = clamp(2.0 * pos - mUv.x, 0.0, 1.0);
+    } else if(uMirrorSide == 2){ /* Top kept, reflected to bottom */
+      if(mUv.y < pos) mUv.y = clamp(2.0 * pos - mUv.y, 0.0, 1.0);
+    } else {                     /* Bottom kept, reflected to top */
+      if(mUv.y > pos) mUv.y = clamp(2.0 * pos - mUv.y, 0.0, 1.0);
+    }
+    uv = mix(uv, mUv, uMirror);
   }
 
   /* ── TILE — sliding mirrored tiling ── */
@@ -236,6 +261,65 @@ void main(){
     uv += wDir * wDisp;
   }
 
+  /* ── WOBBLE — smooth rolling water-lens distortion ── */
+  if(uWob > 0.002){
+    float wSpeed = t * mix(1.2, 7.0, uWobSpeed);
+    float freq = mix(22.0, 3.5, uWobSize);
+    vec2 pW = uv * freq;
+    vec2 wobOff = vec2(
+      sin(pW.y + wSpeed) + cos(pW.x * 0.7 - wSpeed * 0.8),
+      cos(pW.x + wSpeed * 1.1) + sin(pW.y * 0.8 + wSpeed * 0.9)
+    ) * 0.035 * uWob * (1.0 + B * 2.0);
+    uv += wobOff;
+  }
+
+  /* ── MELT — irregular downward dripping runs ── */
+  if(uMelt > 0.002){
+    float mTime = t * mix(0.6, 3.5, uMeltSpeed);
+    float cols = mix(12.0, 64.0, uMeltScale);
+    float colNoise = vnoise(vec2(uv.x * cols, mTime * 0.4));
+    float colBlock = hash(vec2(floor(uv.x * cols * 0.5), floor(mTime * 1.5)));
+    float run = pow(colNoise * 0.65 + colBlock * 0.35, 1.8);
+    float drop = run * pow(clamp(1.0 - uv.y, 0.0, 1.0), 0.65) * uMelt * 0.55 * (1.0 + B * 1.5);
+    uv.y += drop;
+  }
+
+  /* ── JITTER — rapid random displacement along an angle ── */
+  if(uJit > 0.002){
+    float jAng = uJitAngle * TAU;
+    vec2 jDir = vec2(cos(jAng), sin(jAng));
+    float jStep = floor(t * mix(12.0, 60.0, uJitSpeed));
+    float jRand = (hash(vec2(jStep, 31.7)) - 0.5) * 2.0;
+    float jHigh = (hash(vec2(jStep * 1.9 + 7.3, 91.1)) - 0.5) * 2.0;
+    uv += jDir * (jRand * 0.04 + jHigh * 0.015) * uJit * (1.0 + B * 1.5);
+  }
+
+  /* ── SHAKE — whole-frame impact displacement stepped on frame ── */
+  if(uShake > 0.002){
+    float sPeriod = max(1.0, floor(mix(7.0, 1.0, uShakeSpeed)));
+    float sStep = floor(uFrame / sPeriod);
+    float sGate = step(1.0 - mix(0.20, 0.95, uShakeSpeed), hash(vec2(sStep, 71.3)));
+    vec2 sOff = (vec2(hash(vec2(sStep, 13.7)), hash(vec2(sStep, 59.1))) - 0.5) * 2.0;
+    uv += sOff * (uShake * 0.09 * sGate) * (1.0 + B * 2.0);
+  }
+
+  /* ── OPTICAL FLOW — motion vector estimation and liquid advection ── */
+  if(uFlow > 0.002){
+    float tapK = mix(1.0, 6.0, uFlowSpeed);
+    float l0 = luma(ringAt(uv, 0.0));
+    float lp = luma(ringAt(uv, tapK));
+    float dIt = l0 - lp;
+    vec2 pxStep = 2.5 / uRes;
+    float lx = (luma(ringAt(uv + vec2(pxStep.x, 0.0), 0.0)) - luma(ringAt(uv - vec2(pxStep.x, 0.0), 0.0))) * 0.5;
+    float ly = (luma(ringAt(uv + vec2(0.0, pxStep.y), 0.0)) - luma(ringAt(uv - vec2(0.0, pxStep.y), 0.0))) * 0.5;
+    vec2 grad = vec2(lx, ly);
+    float gradSq = dot(grad, grad);
+    vec2 flowV = - (dIt * grad) / (gradSq + 0.0015);
+    flowV = clamp(flowV, vec2(-20.0), vec2(20.0));
+    float dist = mix(0.02, 0.22, uFlowDist);
+    uv -= flowV * dist * uFlow * (1.0 + B * 2.0);
+  }
+
   /* ── WARP — displacement driven by the picture's own luma gradient ── */
   vec2 wuv = uv;
   if(uWarp > 0.002){
@@ -326,6 +410,19 @@ void main(){
     back = fld * uSlit * (uRingN - 3.0);
   }
 
+  /* ── DECIMATE — quantised frame hold and repeat across spatial blocks ── */
+  float decBack = 0.0;
+  if(uDec > 0.002){
+    float dRate = mix(1.5, 20.0, uDecSpeed);
+    float dInterval = 1.0 / dRate;
+    float dBlockSize = floor(mix(8.0, 80.0, uDecScale));
+    vec2 dBlockId = floor(wuv * uRes / max(1.0, dBlockSize));
+    float dPhase = (uDecScale > 0.002) ? hash(dBlockId * 19.17 + 3.3) * dInterval : 0.0;
+    float dDt = mod(t + dPhase, dInterval);
+    decBack = clamp(dDt * 30.0, 0.0, uRingN - 3.0);
+    back = mix(back, back + decBack, uDec);
+  }
+
   /* ── CHANNEL TIME — R, G, B pulled from different moments.
         static scene looks normal; anything moving fringes into the past ── */
   float ct = uCTime * (uRingN - 3.0) / 2.6;
@@ -336,6 +433,11 @@ void main(){
   vec3 col = vec3(ringLerp(uvR, back).r,
                   ringLerp(uvG, back + ct).g,
                   ringLerp(uvB, back + ct*2.0).b);
+
+  if(uDec > 0.002 && uDecTint > 0.002){
+    vec3 dTint = 0.5 + 0.5 * cos(TAU * (decBack * 0.10 + vec3(0.0, 0.33, 0.67)));
+    col = mix(col, col * dTint * 1.8, uDec * uDecTint);
+  }
 
   if(uTear > 0.002){
     col = mix(col, vec3(0.0), bandBlack);
@@ -532,6 +634,7 @@ uniform float uSmear, uGhost;
 uniform float uBitAmt;
 uniform vec3  uBitMask;
 uniform float uBitSwap, uBus, uStarve;
+uniform float uSoft, uSoftSpeed;
 
 /* composite sample at a horizontal offset, QAM'd at fs/4 so the carrier is
    [1,0,-1,0] / [0,1,0,-1] — four taps, integer indexing, no sin(), no cos() */
@@ -568,6 +671,18 @@ void main(){
   }
 
   vec3 col = texture(uTex, uv).rgb;
+
+  /* ── SOFT GLITCH — smooth gradient chromatic tearing in soft bands ── */
+  if(uSoft > 0.002){
+    float sTime = uTime * mix(1.2, 7.0, uSoftSpeed);
+    float bandA = sin(uv.y * 7.0 + sTime) * cos(uv.y * 3.3 - sTime * 0.7);
+    float bandB = sin(uv.y * 17.0 - sTime * 1.3 + 1.2) * 0.5;
+    float tearGrad = (bandA + bandB) * uSoft * 0.055 * (1.0 + uBend * 1.6);
+    float r = texture(uTex, clamp(uv + vec2(tearGrad, 0.0), 0.0, 1.0)).r;
+    float g = texture(uTex, uv).g;
+    float b = texture(uTex, clamp(uv - vec2(tearGrad * 0.85, 0.0), 0.0, 1.0)).b;
+    col = vec3(r, g, b);
+  }
 
   /* ── NTSC: encode to one composite wire, then separate it back badly.
         dot crawl is not faked here — it IS the imperfect separation ── */
@@ -1416,6 +1531,28 @@ function Engine(canvas){
       gl.uniform1f(m.uScope, p.scope);
       gl.uniform1f(m.uScopeLines, p.scopeLines);
       gl.uniform1f(m.uScopeGlow, p.scopeGlow);
+      gl.uniform1f(m.uFrame, p.frame);
+      gl.uniform1f(m.uDec, p.dec);
+      gl.uniform1f(m.uDecSpeed, p.decSpeed);
+      gl.uniform1f(m.uDecScale, p.decScale);
+      gl.uniform1f(m.uDecTint, p.decTint);
+      gl.uniform1f(m.uFlow, p.flow);
+      gl.uniform1f(m.uFlowDist, p.flowDist);
+      gl.uniform1f(m.uFlowSpeed, p.flowSpeed);
+      gl.uniform1f(m.uJit, p.jit);
+      gl.uniform1f(m.uJitSpeed, p.jitSpeed);
+      gl.uniform1f(m.uJitAngle, p.jitAngle);
+      gl.uniform1f(m.uMelt, p.melt);
+      gl.uniform1f(m.uMeltScale, p.meltScale);
+      gl.uniform1f(m.uMeltSpeed, p.meltSpeed);
+      gl.uniform1f(m.uWob, p.wob);
+      gl.uniform1f(m.uWobSize, p.wobSize);
+      gl.uniform1f(m.uWobSpeed, p.wobSpeed);
+      gl.uniform1f(m.uShake, p.shake);
+      gl.uniform1f(m.uShakeSpeed, p.shakeSpeed);
+      gl.uniform1f(m.uMirror, p.mirror);
+      gl.uniform1f(m.uMirrorPos, p.mirrorPos);
+      gl.uniform1i(m.uMirrorSide, p.mirrorSide|0);
       draw(work);
 
       /* ── SIGNAL ── */
@@ -1426,6 +1563,8 @@ function Engine(canvas){
       gl.uniform1f(s.uTime, p.time);
       gl.uniform1f(s.uBend, p.bend);
       gl.uniform1f(s.uFrame, p.frame);
+      gl.uniform1f(s.uSoft, p.soft);
+      gl.uniform1f(s.uSoftSpeed, p.softSpeed);
       gl.uniform1f(s.uNtsc, p.ntsc);
       gl.uniform1f(s.uNtscSat, 0.4 + p.ntscSat*2.6);
       gl.uniform1f(s.uNtscPhase, p.ntscPhase);

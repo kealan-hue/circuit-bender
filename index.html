@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CIRCUIT BENDER SHELL — multi-build video synthesis and hardware signal bend environment running on WebGL2.">
 <title>CIRCUIT BENDER // SHELL</title>
-<link rel="stylesheet" href="assets/css/panel.css?v=27">
-<link rel="stylesheet" href="assets/css/shell.css?v=27">
+<link rel="stylesheet" href="assets/css/panel.css?v=28">
+<link rel="stylesheet" href="assets/css/shell.css?v=28">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0e10'/%3E%3Cpath d='M16 3 L18 14 L27 12 L19 17 L25 26 L16 19 L7 26 L13 17 L5 12 L14 14 Z' fill='%23e8eaed'/%3E%3C/svg%3E">
 </head>
 <body class="shell-body">
@@ -45,141 +45,30 @@
 <!-- Desktop Container containing all panels -->
 <main class="shell-desktop" id="desktop">
 
-  <!-- /builds/datamosh -->
-  <article class="shell-panel" data-build="mosh" id="panel-mosh">
+  <!-- /effects — the catalogue. every effect, in the reference's own taxonomy -->
+  <article class="shell-panel shell-panel--cat is-expanded" data-aux="cat" id="panel-cat">
     <header class="shell-panel__header">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
       <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/datamosh</b>
+        <i class="shell-panel__led on"></i>
+        <b class="shell-panel__path">/effects</b>
       </div>
       <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
+        <button type="button" class="shell-panel__act-btn on">CATALOGUE</button>
       </div>
     </header>
-    <div class="shell-panel__body" id="body-mosh"></div>
+    <div class="shell-panel__body">
+      <div class="cat-hint">tap to add &middot; stack as many as you like &middot; they all apply, in order</div>
+      <div class="cat-list" id="cat-list"></div>
+    </div>
     <footer class="shell-panel__footer">
-      <span>CBX-MOSH</span>
-      <em>p-frame vector carry · recursive buffer</em>
-    </footer>
-  </article>
-
-  <!-- /builds/pixelsort -->
-  <article class="shell-panel" data-build="sort" id="panel-sort">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/pixelsort</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-sort"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-SORT</span>
-      <em>odd-even transposition · luma gate</em>
-    </footer>
-  </article>
-
-  <!-- /builds/composite -->
-  <article class="shell-panel" data-build="ntsc" id="panel-ntsc">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/composite</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-ntsc"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-NTSC</span>
-      <em>fs/4 QAM encode · subcarrier burst · head switch</em>
-    </footer>
-  </article>
-
-  <!-- /builds/rutt_etra -->
-  <article class="shell-panel" data-build="raster" id="panel-raster">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/rutt_etra</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-raster"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-RAST</span>
-      <em>luma column gather · P7 vector scan</em>
-    </footer>
-  </article>
-
-  <!-- /builds/frame_ring -->
-  <article class="shell-panel" data-build="time" id="panel-time">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/frame_ring</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-time"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-TIME</span>
-      <em>32-layer texture array · temporal displacement</em>
-    </footer>
-  </article>
-
-  <!-- /builds/two_pole -->
-  <article class="shell-panel" data-build="duo" id="panel-duo">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/two_pole</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-duo"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-DUO</span>
-      <em>two-pole chroma fold · preserved luma</em>
-    </footer>
-  </article>
-
-  <!-- /builds/light_streak -->
-  <article class="shell-panel" data-build="streak" id="panel-streak">
-    <header class="shell-panel__header">
-      <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
-      <div class="shell-panel__title">
-        <i class="shell-panel__led"></i>
-        <b class="shell-panel__path">/builds/light_streak</b>
-      </div>
-      <div class="shell-panel__actions">
-        <button type="button" class="shell-panel__act-btn">SELECT</button>
-      </div>
-    </header>
-    <div class="shell-panel__body" id="body-streak"></div>
-    <footer class="shell-panel__footer">
-      <span>CBX-FILM</span>
-      <em>flare streak · Super 8 emulsion · gate dust</em>
+      <span>CBX-CAT</span>
+      <em>one engine &middot; one context &middot; every pass guarded</em>
     </footer>
   </article>
 
   <!-- /builds/circuit_bender -->
-  <article class="shell-panel shell-panel--bender" data-build="bender" id="panel-bender">
+  <article class="shell-panel shell-panel--bender" data-aux="bender" id="panel-bender">
     <header class="shell-panel__header">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
       <div class="shell-panel__title">
@@ -209,7 +98,7 @@
   </article>
 
   <!-- /system/status -->
-  <article class="shell-panel shell-panel--sys" data-build="status" id="panel-status">
+  <article class="shell-panel shell-panel--sys" data-aux="status" id="panel-status">
     <header class="shell-panel__header">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
       <div class="shell-panel__title">
@@ -260,7 +149,7 @@
   </article>
 
   <!-- /about -->
-  <article class="shell-panel shell-panel--about" data-build="about" id="panel-about">
+  <article class="shell-panel shell-panel--about" data-aux="about" id="panel-about">
     <header class="shell-panel__header">
       <i class="screw screw--tl"></i><i class="screw screw--tr"></i>
       <div class="shell-panel__title">
@@ -286,9 +175,9 @@
 
 </main>
 
-<script src="assets/js/sigil.js?v=27"></script>
-<script src="assets/js/ui.js?v=27"></script>
-<script src="assets/js/engine.js?v=27"></script>
-<script src="assets/js/shell.js?v=27"></script>
+<script src="assets/js/sigil.js?v=28"></script>
+<script src="assets/js/ui.js?v=28"></script>
+<script src="assets/js/engine.js?v=28"></script>
+<script src="assets/js/shell.js?v=28"></script>
 </body>
 </html>

@@ -33,10 +33,17 @@ const SEED = [...SERIAL].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
 const V = {
   gain:0.5, bias:0.5, route:0, duo:0.62, poles:1, axis:0.34, sat:0.42, con:0.26, mix:1,
   slit:0, slitMode:0, ctime:0, echo:0, delay:0.35, delayMix:0,
+  dec:0, decSpeed:0.5, decScale:0.5, decTint:0,
+  flow:0, flowDist:0.5, flowSpeed:0.5,
   tear:0.05, tearRate:0.5, warp:0, kal:0, rutt:0, ruttLines:0.5,
+  jit:0, jitSpeed:0.5, jitAngle:0,
+  melt:0, meltScale:0.5, meltSpeed:0.5,
+  wob:0, wobSize:0.5, wobSpeed:0.5,
+  shake:0, shakeSpeed:0.5,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
   mosh:0, feed:0, orbit:0.5, droste:0,
   ntsc:0, ntscSat:0.5, headsw:0, wave:0, chromaLoss:0, ghost:0, smear:0, bitAmt:0,
+  soft:0, softSpeed:0.5,
   addr:0, clock:0, bitSwap:0, bus:0, starve:0,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
@@ -45,6 +52,7 @@ const V = {
   bulge:0.5, bulgeRadius:0.5,
   push:0, pushAngle:0,
   wave2:0, waveFreq:0.5, waveAngle:0,
+  mirror:0, mirrorPos:0.5, mirrorSide:0,
   tx:0.5, ty:0.5, tScale:0.5, tRot:0.5,
   strobe:0, strobeRate:0.5,
   grain:0, grainSize:0.5,
@@ -59,6 +67,14 @@ const V = {
    a lie. The resting look is applied once at boot and is not what KILL means. */
 const NEUTRAL = Object.assign({}, V, {
   bias:0.5, route:0, duo:0, poles:1, axis:0.34, sat:0, con:0, tear:0, post:0, dither:0, scan:0, noise:0,
+  dec:0, decSpeed:0.5, decScale:0.5, decTint:0,
+  flow:0, flowDist:0.5, flowSpeed:0.5,
+  jit:0, jitSpeed:0.5, jitAngle:0,
+  melt:0, meltScale:0.5, meltSpeed:0.5,
+  wob:0, wobSize:0.5, wobSpeed:0.5,
+  shake:0, shakeSpeed:0.5,
+  soft:0, softSpeed:0.5,
+  mirror:0, mirrorPos:0.5, mirrorSide:0,
   water:0, waterBleed:0.5, scope:0, scopeLines:0.5, scopeGlow:0.5,
   tile:0, tileSpeed:0.5, tileAngle:0,
   split:0, splitCount:0.4, splitAngle:0,
@@ -79,17 +95,17 @@ const DEF = NEUTRAL;
 
 /* stage → the params it owns. the rocker zeroes them without losing them */
 const STAGE = {
-  time:   ['slit','ctime','echo','delayMix'],
-  space:  ['tear','warp','kal'],
+  time:   ['slit','ctime','echo','delayMix','dec','decSpeed','decScale','decTint','flow','flowDist','flowSpeed'],
+  space:  ['tear','warp','kal','jit','jitSpeed','jitAngle','melt','meltScale','meltSpeed','wob','wobSize','wobSpeed','shake','shakeSpeed'],
   raster: ['rutt'],
   mosh:   ['mosh'],
   regen:  ['feed','droste'],
   tape:   ['headsw','wave','chromaLoss'],
   comp:   ['ntsc','ghost'],
-  sensor: ['smear','bitAmt'],
+  sensor: ['smear','bitAmt','soft','softSpeed'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll',
-           'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','tx','ty','tScale','tRot'],
+           'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','mirror','mirrorPos','mirrorSide','tx','ty','tScale','tRot'],
   beam:   ['water','waterBleed','scope','scopeLines','scopeGlow'],
   sort:   ['sort'],
   redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
@@ -461,17 +477,35 @@ const RACK = [
     K('con','CONTRAST',{ def:0 }),
     F('mix','DRY / WET',{ def:1,  detent:[0,1] })
   ]},
-  { id:'time', name:'TIME BASE', note:'per-pixel delay', ctl:[
+  { id:'time', name:'TIME BASE', note:'per-pixel delay', wide:true, ctl:[
     K('slit','SPREAD', { def:0 }),
     S('slitMode','FIELD', ['X','Y','RAD','LUMA','GRID']),
     K('ctime','CH TIME',{ def:0 }),
-    K('echo','ECHO',   { def:0 })
+    K('echo','ECHO',   { def:0 }),
+    K('dec','DECIMATE',{ def:0 }),
+    K('decSpeed','D SPEED',{ def:0.5 }),
+    K('decScale','D SCALE',{ def:0.5 }),
+    K('decTint','D TINT',{ def:0 }),
+    K('flow','FLOW',   { def:0 }),
+    K('flowDist','F DIST',{ def:0.5 }),
+    K('flowSpeed','F SPEED',{ def:0.5 })
   ]},
-  { id:'space', name:'DEFLECT', ctl:[
+  { id:'space', name:'DEFLECT', wide:true, ctl:[
     K('tear','TEAR',   { def:0 }),
     K('tearRate','RATE',{ def:0.5 }),
     K('warp','WARP',   { def:0 }),
-    K('kal','FOLD',    { def:0 })
+    K('kal','FOLD',    { def:0 }),
+    K('jit','JITTER',  { def:0 }),
+    K('jitSpeed','J SPEED',{ def:0.5 }),
+    K('jitAngle','J ANGLE',{ def:0 }),
+    K('melt','MELT',   { def:0 }),
+    K('meltScale','M SCALE',{ def:0.5 }),
+    K('meltSpeed','M SPEED',{ def:0.5 }),
+    K('wob','WOBBLE',  { def:0 }),
+    K('wobSize','W SIZE',{ def:0.5 }),
+    K('wobSpeed','W SPEED',{ def:0.5 }),
+    K('shake','SHAKE', { def:0 }),
+    K('shakeSpeed','S SPEED',{ def:0.5 })
   ]},
   { id:'raster', name:'RASTER', note:'rutt / etra', ctl:[
     K('rutt','DEFLECT',{ def:0 }),
@@ -499,7 +533,9 @@ const RACK = [
   ]},
   { id:'sensor', name:'SENSOR', ctl:[
     K('smear','SMEAR', { def:0 }),
-    K('bitAmt','BITS', { def:0 })
+    K('bitAmt','BITS', { def:0 }),
+    K('soft','SOFT GLITCH',{ def:0 }),
+    K('softSpeed','S SPEED',{ def:0.5 })
   ]},
   /* the only stages here that corrupt the MACHINE rather than simulate a
      machine working normally on damaged media */
@@ -531,6 +567,9 @@ const RACK = [
     K('wave2',      'WAVE 2',  { def:0 }),
     K('waveFreq',   'W FREQ',  { def:0.5 }),
     K('waveAngle',  'W ANGLE', { def:0 }),
+    K('mirror',     'MIRROR',  { def:0 }),
+    K('mirrorPos',  'M POS',   { def:0.5, detent:[0.5] }),
+    S('mirrorSide', 'M SIDE',  ['L','R','T','B'], { value:0, def:0 }),
     K('tx',         'PAN X',   { def:0.5, detent:[0.5] }),
     K('ty',         'PAN Y',   { def:0.5, detent:[0.5] }),
     K('tScale',     'ZOOM',    { def:0.5, detent:[0.5] }),
@@ -1182,8 +1221,8 @@ function selftest(passes){
   const keep = JSON.parse(JSON.stringify(V));
   const keepOn = Object.assign({}, ON);
   for(const k in STAGE) ON[k] = true;
-  const skipModes = { slitMode:1, sortKey:1, sortAxis:1, sortOrder:1, sortSpan:1, inv:1, cgaPal:1, overMode:1 };
-  const midParams = { axis:0.5, keyHue:0.33, gateLo:0.25, gateHi:0.85 };
+  const skipModes = { slitMode:1, sortKey:1, sortAxis:1, sortOrder:1, sortSpan:1, inv:1, cgaPal:1, overMode:1, mirrorSide:1 };
+  const midParams = { axis:0.5, keyHue:0.33, gateLo:0.25, gateHi:0.85, mirrorPos:0.5 };
   for(const k in V){
     if(skipModes[k]) continue;
     if(midParams[k] !== undefined){

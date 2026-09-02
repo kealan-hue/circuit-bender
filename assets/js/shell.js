@@ -51,103 +51,284 @@ const NEUTRAL = {
 /* ── active runtime parameters ────────────────────────────── */
 const activeParams = Object.assign({}, NEUTRAL);
 
-/* ── the build definitions & useful region presets ────────── */
-const BUILDS = {
-  mosh: {
-    name: 'MOSH',
-    path: '/builds/datamosh',
-    tag: 'CBX-MOSH',
-    defaults: { mosh: 0.55, feed: 0.35, orbit: 0.52 },
-    controls: [
-      { id: 'mosh',  label: 'MOSH',  kind: 'knob', value: 0.55, def: 0 },
-      { id: 'feed',  label: 'FEED',  kind: 'knob', value: 0.35, def: 0 },
-      { id: 'orbit', label: 'ORBIT', kind: 'knob', value: 0.52, def: 0.5, detent: [0.5] }
-    ]
-  },
-  sort: {
-    name: 'SORT',
-    path: '/builds/pixelsort',
-    tag: 'CBX-SORT',
-    defaults: { sort: 0.45, gateLo: 0.20, gateHi: 0.75, sortKey: 0, sortSpan: 1 },
-    controls: [
-      { id: 'sort',    label: 'PASSES', kind: 'knob',  value: 0.45, def: 0 },
-      { id: 'gateLo',  label: 'GATE ↓', kind: 'knob',  value: 0.20, def: 0.25, detent: [0.25] },
-      { id: 'gateHi',  label: 'GATE ↑', kind: 'knob',  value: 0.75, def: 0.85, detent: [0.85] },
-      { id: 'sortKey', label: 'KEY',    kind: 'slide', positions: ['LUMA', 'DARK', 'RGB', 'VAL'], value: 0, def: 0 }
-    ]
-  },
-  ntsc: {
-    name: 'NTSC',
-    path: '/builds/composite',
-    tag: 'CBX-NTSC',
-    defaults: { ntsc: 0.75, ntscSat: 0.65, headsw: 0.30, chromaLoss: 0.25 },
-    controls: [
-      { id: 'ntsc',       label: 'ENCODE',  kind: 'knob', value: 0.75, def: 0 },
-      { id: 'ntscSat',    label: 'BURST',   kind: 'knob', value: 0.65, def: 0.5, detent: [0.5] },
-      { id: 'headsw',     label: 'HEAD SW', kind: 'knob', value: 0.30, def: 0 },
-      { id: 'chromaLoss', label: 'CH LOSS', kind: 'knob', value: 0.25, def: 0 }
-    ]
-  },
-  raster: {
-    name: 'RASTER',
-    path: '/builds/rutt_etra',
-    tag: 'CBX-RAST',
-    defaults: { rutt: 0.55, ruttLines: 0.50, scope: 0.45, scopeLines: 0.50, scopeGlow: 0.60 },
-    controls: [
-      { id: 'rutt',       label: 'RUTT',   kind: 'knob', value: 0.55, def: 0 },
-      { id: 'ruttLines',  label: 'LINES',  kind: 'knob', value: 0.50, def: 0.5, detent: [0.5] },
-      { id: 'scope',      label: 'SCOPE',  kind: 'knob', value: 0.45, def: 0 },
-      { id: 'scopeLines', label: 'TRACES', kind: 'knob', value: 0.50, def: 0.5, detent: [0.5] }
-    ]
-  },
-  time: {
-    name: 'TIME',
-    path: '/builds/frame_ring',
-    tag: 'CBX-TIME',
-    defaults: { slit: 0.60, slitMode: 0, ctime: 0.45, echo: 0.35 },
-    controls: [
-      { id: 'slit',     label: 'SPREAD', kind: 'knob',  value: 0.60, def: 0 },
-      { id: 'slitMode', label: 'FIELD',  kind: 'slide', positions: ['X', 'Y', 'RAD', 'LUM', 'GRD'], value: 0, def: 0 },
-      { id: 'ctime',    label: 'CH TIME',kind: 'knob',  value: 0.45, def: 0 },
-      { id: 'echo',     label: 'ECHO',   kind: 'knob',  value: 0.35, def: 0 }
-    ]
-  },
-  duo: {
-    name: 'DUO',
-    path: '/builds/two_pole',
-    tag: 'CBX-DUO',
-    defaults: { duo: 0.75, poles: 1, axis: 0.34, sat: 0.60 },
-    controls: [
-      { id: 'duo',   label: 'DUOTONE', kind: 'knob', value: 0.75, def: 0 },
-      { id: 'poles', label: 'POLES',   kind: 'slide', positions: ['MONO','DUO','TRI','QUAD'], value: 1, def: 1 },
-      { id: 'axis',  label: 'AXIS',    kind: 'knob', value: 0.34, def: 0.34, detent: [0.34] },
-      { id: 'sat',   label: 'COLOUR',  kind: 'knob', value: 0.60, def: 0 }
-    ]
-  },
-  streak: {
-    name: 'STREAK',
-    path: '/builds/light_streak',
-    tag: 'CBX-FILM',
-    defaults: { streak: 0.55, streakAngle: 0.15, s8: 0.45, s8Dust: 0.50, s8Burn: 0.40 },
-    controls: [
-      { id: 'streak',      label: 'STREAK',  kind: 'knob', value: 0.55, def: 0 },
-      { id: 'streakAngle', label: 'ANGLE',   kind: 'knob', value: 0.15, def: 0 },
-      { id: 's8',          label: 'SUPER 8', kind: 'knob', value: 0.45, def: 0 },
-      { id: 's8Dust',      label: 'DUST',    kind: 'knob', value: 0.50, def: 0.5, detent: [0.5] }
-    ]
-  }
+/* ── THE EFFECT CATALOGUE ──────────────────────────────────────
+   Mosh-Pro's taxonomy, Mosh-Pro's names, our engine underneath.
+   An effect appears here only when every parameter it names exists
+   in the engine — there are no placeholder tiles. ── */
+const CATS = [
+  ['REFRAME',  'reframing the picture'],
+  ['TIME',     'built from several frames — needs motion'],
+  ['DISPLACE', 'pushing pixels around'],
+  ['REPEAT',   'reflecting and repeating'],
+  ['TONE',     'how light and dark are distributed'],
+  ['DOTS',     'rebuilt from a limited set of marks'],
+  ['COLOR',    'grading, remapping, palettes'],
+  ['OPTICS',   'lenses and light'],
+  ['FILM',     'formats and displays'],
+  ['LAYERS',   'brings its own picture'],
+  ['MASK',     'cuts the effect to part of the frame'],
+];
+
+const K = (id, label, value, def, detent) =>
+  ({ id, label, kind: 'knob', value, def: def == null ? 0 : def, detent });
+const D = (id, label, positions, value) =>
+  ({ id, label, kind: 'slide', positions, value: value || 0, def: value || 0 });
+
+const EFFECTS = {
+  /* ── REFRAME ── */
+  transform:   { cat:'REFRAME', name:'TRANSFORM', tag:'CBX-TFM', note:'move, scale, rotate the frame',
+                 params:[K('tx','POS X',0.5,0.5,[0.5]),K('ty','POS Y',0.5,0.5,[0.5]),K('tScale','SCALE',0.62,0.5,[0.5]),K('tRot','ANGLE',0.5,0.5,[0.5])] },
+  transform3d: { cat:'REFRAME', name:'TRANSFORM 3D', tag:'CBX-3D', note:'rotate the plane in space',
+                 params:[K('w3d','AMOUNT',0.55),K('w3dPitch','PITCH',0.62,0.5,[0.5]),K('w3dYaw','YAW',0.60,0.5,[0.5]),K('w3dRoll','ROLL',0.5,0.5,[0.5])] },
+
+  /* ── TIME ── */
+  datamosh:    { cat:'TIME', name:'DATA MOSH', tag:'CBX-MOSH', note:'p-frame vector carry · recursive buffer',
+                 params:[K('mosh','AMOUNT',0.55),K('feed','FLOW',0.35),K('orbit','DRIFT',0.52,0.5,[0.5])] },
+  feedback:    { cat:'TIME', name:'FEEDBACK', tag:'CBX-FDBK', note:'the camera pointed at its own monitor',
+                 params:[K('feed','AMOUNT',0.60),K('orbit','ROTATE',0.55,0.5,[0.5]),K('droste','TUNNEL',0.40)] },
+  watercolor:  { cat:'TIME', name:'WATERCOLOR', tag:'CBX-WTR', note:'paint bleeding on wet paper',
+                 params:[K('water','AMOUNT',0.62),K('waterBleed','FLOW',0.55,0.5,[0.5])] },
+  slitscan:    { cat:'TIME', name:'SLIT SCAN', tag:'CBX-SLIT', note:'each part of the frame from a different moment',
+                 params:[K('slit','AMOUNT',0.70),D('slitMode','FIELD',['X','Y','RAD','LUM','GRD'],0),K('ctime','SPREAD',0.60)] },
+
+  /* ── DISPLACE ── */
+  lumamesh:    { cat:'DISPLACE', name:'LUMA MESH', tag:'CBX-MESH', note:'brightness becomes height · rutt/etra lines',
+                 params:[K('rutt','HEIGHT',0.58),K('ruttLines','LINES',0.45,0.5,[0.5]),K('scope','TRACE',0.35),K('scopeGlow','GLOW',0.60,0.5,[0.5])] },
+  bulge:       { cat:'DISPLACE', name:'BULGE', tag:'CBX-BLG', note:'pushed outward like a fisheye',
+                 params:[K('bulge','AMOUNT',0.70,0.5,[0.5]),K('bulgeRadius','RADIUS',0.55,0.5,[0.5])] },
+  slices:      { cat:'DISPLACE', name:'SLICES', tag:'CBX-SLC', note:'the classic torn transmission',
+                 params:[K('tear','AMOUNT',0.62),K('tearRate','SPEED',0.50,0.5,[0.5])] },
+  stretch:     { cat:'DISPLACE', name:'STRETCH', tag:'CBX-STR', note:'pulls a region across the frame',
+                 params:[K('stretch','AMOUNT',0.60),K('stretchWave','WAVE',0.35),K('stretchJag','JAGGIES',0.30)] },
+  wave:        { cat:'DISPLACE', name:'WAVE', tag:'CBX-WAV', note:'one clean sine through the picture',
+                 params:[K('wave2','AMOUNT',0.55),K('waveFreq','SIZE',0.45,0.5,[0.5]),K('waveAngle','ANGLE',0.0)] },
+  badtv:       { cat:'DISPLACE', name:'BAD TV', tag:'CBX-BTV', note:'analog transport warble · tracking off',
+                 params:[K('headsw','THICK',0.62),K('wave','FINE',0.40),K('chromaLoss','CH LOSS',0.35)] },
+  hardglitch:  { cat:'DISPLACE', name:'HARD GLITCH', tag:'CBX-HGL', note:'chunky multi-scale displacement',
+                 params:[K('addr','AMOUNT',0.55),K('clock','SCALE',0.45),K('bitAmt','SPLIT',0.40)] },
+  smear:       { cat:'DISPLACE', name:'SMEAR', tag:'CBX-SMR', note:'long painted streaks behind motion',
+                 params:[K('smear','AMOUNT',0.62)] },
+  strobe:      { cat:'DISPLACE', name:'STROBE', tag:'CBX-STB', note:'cuts frames in and out on a beat',
+                 params:[K('strobe','AMOUNT',0.70),K('strobeRate','SPEED',0.45,0.5,[0.5])] },
+  streak:      { cat:'DISPLACE', name:'LIGHT STREAK', tag:'CBX-STK', note:'highlights stretched anamorphic',
+                 params:[K('streak','AMOUNT',0.65),K('streakAngle','ANGLE',0.15)] },
+  pixelsort:   { cat:'DISPLACE', name:'PIXEL SORT', tag:'CBX-SORT', note:'odd-even transposition · luma gate',
+                 params:[K('sort','AMOUNT',0.45),K('gateLo','GATE ↓',0.20),K('gateHi','GATE ↑',0.75),D('sortKey','KEY',['LUMA','DARK','RGB','VAL'],0)] },
+
+  /* ── REPEAT ── */
+  tile:        { cat:'REPEAT', name:'TILE', tag:'CBX-TIL', note:'sliding mirrored tiling',
+                 params:[K('tile','AMOUNT',0.55),K('tileSpeed','SPEED',0.45,0.5,[0.5]),K('tileAngle','ANGLE',0.0)] },
+  kaleido:     { cat:'REPEAT', name:'KALEIDO', tag:'CBX-KAL', note:'mirrored into wedges',
+                 params:[K('kal','AMOUNT',0.60)] },
+  splitter:    { cat:'REPEAT', name:'SPLITTER', tag:'CBX-SPL', note:'strips offset but still ordered',
+                 params:[K('split','SHIFT',0.55),K('splitCount','COUNT',0.40),K('splitAngle','ANGLE',0.0)] },
+
+  /* ── TONE ── */
+  solarize:    { cat:'TONE', name:'SOLARIZE', tag:'CBX-SOL', note:'the darkroom accident',
+                 params:[D('inv','POLARITY',['NORM','NEG','SOLAR'],2)] },
+  bleach:      { cat:'TONE', name:'BLEACH', tag:'CBX-BLC', note:'contrast crushed toward white',
+                 params:[K('bleach','AMOUNT',0.55)] },
+  sharpen:     { cat:'TONE', name:'SHARPEN', tag:'CBX-SHP', note:'local contrast at the edges',
+                 params:[K('sharpen','AMOUNT',0.60)] },
+
+  /* ── DOTS ── */
+  eightbit:    { cat:'DOTS', name:'8-BIT', tag:'CBX-CGA', note:'period palette, pixelated to match',
+                 params:[K('cga','AMOUNT',0.70),D('cgaPal','PALETTE',['MAGENTA','RED/GRN','AMBER'],0)] },
+  halftone:    { cat:'DOTS', name:'HALF TONE', tag:'CBX-HTN', note:'tone as dots on an angled screen',
+                 params:[K('half','AMOUNT',0.60)] },
+  dither:      { cat:'DOTS', name:'DITHER', tag:'CBX-DTH', note:'bayer 8×8 · extra tones from noise',
+                 params:[K('dither','AMOUNT',0.65)] },
+  ascii:       { cat:'DOTS', name:'ASCII', tag:'CBX-ASC', note:'characters chosen by brightness',
+                 params:[K('ascii','AMOUNT',0.70),K('asciiTint','COLORIZE',0.50)] },
+
+  /* ── COLOR ── */
+  colorcorr:   { cat:'COLOR', name:'COLOR CORRECTION', tag:'CBX-CC', note:'the plate everything else starts from',
+                 params:[K('ccLift','LIFT',0.5,0.5,[0.5]),K('ccGamma','GAMMA',0.5,0.5,[0.5]),K('ccGain','GAIN',0.5,0.5,[0.5]),K('ccTemp','TEMP',0.5,0.5,[0.5])] },
+  duotone:     { cat:'COLOR', name:'DUOTONE', tag:'CBX-DUO', note:'chroma collapsed onto poles · luma untouched',
+                 params:[K('duo','AMOUNT',0.75),D('poles','POLES',['MONO','DUO','TRI','QUAD'],1),K('axis','AXIS',0.34,0.34,[0.34]),K('sat','COLOUR',0.60)] },
+
+  /* ── OPTICS ── */
+  blur:        { cat:'OPTICS', name:'BLUR', tag:'CBX-BLR', note:'straight gaussian',
+                 params:[K('blur','AMOUNT',0.45)] },
+  pushdraw:    { cat:'OPTICS', name:'PUSH DRAW', tag:'CBX-PSH', note:'displaced along a direction you choose',
+                 params:[K('push','AMOUNT',0.55),K('pushAngle','ANGLE',0.25)] },
+
+  /* ── FILM ── */
+  super8:      { cat:'FILM', name:'SUPER 8', tag:'CBX-S8', note:'burn, dust, gate weave',
+                 params:[K('s8','AMOUNT',0.60),K('s8Dust','DUST',0.45),K('s8Burn','BURN',0.40)] },
+  vhs:         { cat:'FILM', name:'VHS', tag:'CBX-VHS', note:'dropout bars · chroma noise · head switch',
+                 params:[K('headsw','HEAD SW',0.55),K('chromaLoss','STATIC',0.45),K('smear','BARS',0.40),K('ghost','GHOST',0.30)] },
+  crt:         { cat:'FILM', name:'CRT', tag:'CBX-CRT', note:'phosphor triads, curvature, vignette',
+                 params:[K('post','AMOUNT',0.65)] },
+  scanlines:   { cat:'FILM', name:'SCANLINES', tag:'CBX-SCN', note:'the raster of an old monitor',
+                 params:[K('scan','AMOUNT',0.55)] },
+  grain:       { cat:'FILM', name:'GRAIN', tag:'CBX-GRN', note:'sits on the print, not inside the image',
+                 params:[K('grain','AMOUNT',0.45),K('grainSize','SIZE',0.40,0.5,[0.5]),K('noise','HISS',0.25)] },
+
+  /* ── LAYERS ── */
+  media:       { cat:'LAYERS', name:'OVERLAY', tag:'CBX-OVL', note:'a second layer from the frame ring',
+                 params:[K('over','OPACITY',0.55),D('overMode','BLEND',['SCREEN','MULT','DIFF','ADD'],0)] },
+
+  /* ── MASK ── */
+  maskblocks:  { cat:'MASK', name:'MASK BLOCKS', tag:'CBX-MSK', note:'a generated block pattern that shifts',
+                 params:[K('mask','AMOUNT',0.60),K('maskSize','SCALE',0.45,0.5,[0.5]),K('maskSpeed','SPEED',0.50,0.5,[0.5])] },
+  chromakey:   { cat:'MASK', name:'CHROMAKEY', tag:'CBX-KEY', note:'keys out a colour you pick',
+                 params:[K('key','AMOUNT',0.70),K('keyHue','CHROMA',0.33),K('keyTol','THRESHOLD',0.30)] },
 };
 
-/* ── active build state ───────────────────────────────────── */
-let activeBuild = 'duo';
-const buildValues = {};
+/* ── open-effect state ─────────────────────────────────────────
+   Several effects are open at once and they all apply — that is the
+   whole point of a rack, and it is what "stack and re-order effects"
+   means in the reference. activeParams is their union, not a winner. ── */
+const openOrder = [];                 /* effect ids, in the order added */
+const values = {};                    /* per-effect current knob values  */
 const widgetMap = {};
+for (const id in EFFECTS) {
+  values[id] = {};
+  EFFECTS[id].params.forEach(p => { values[id][p.id] = p.value; });
+}
 
-for (const b in BUILDS) {
-  buildValues[b] = Object.assign({}, BUILDS[b].defaults);
+/* every parameter any effect touches — used to clear only what we own */
+const OWNED = (() => {
+  const s = new Set();
+  for (const id in EFFECTS) EFFECTS[id].params.forEach(p => s.add(p.id));
+  return [...s];
+})();
+
+function recomputeParams() {
+  /* start from neutral for everything an effect could have touched */
+  OWNED.forEach(k => { activeParams[k] = (k in NEUTRAL) ? NEUTRAL[k] : 0; });
+  /* then lay each open effect over the top, in the order it was added */
+  openOrder.forEach(id => {
+    const v = values[id];
+    for (const k in v) activeParams[k] = v[k];
+  });
+  /* pixel sort needs its stride schedule or it caps at the pass count */
+  if (openOrder.includes('pixelsort')) activeParams.sortSpan = 1;
+  paintChain();
+}
+
+function paintChain() {
+  const label = $('#shell-active-label');
+  const txt = openOrder.length
+    ? openOrder.map(id => EFFECTS[id].name).join(' → ')
+    : 'no effects — pick one from /effects';
+  if (label) label.textContent = txt;
+  const sysBuild = $('#sys-build');
+  if (sysBuild) sysBuild.textContent = openOrder.length + ' in chain';
+  $$('.cat-row').forEach(r => r.classList.toggle('on', openOrder.includes(r.dataset.fx)));
+}
+
+function openEffect(id) {
+  if (!EFFECTS[id] || openOrder.includes(id)) return;
+  openOrder.push(id);
+  desk.appendChild(makePanel(id));
+  recomputeParams();
+  layoutDesktopPanels();
+}
+
+function closeEffect(id) {
+  const i = openOrder.indexOf(id);
+  if (i < 0) return;
+  openOrder.splice(i, 1);
+  const p = $('#panel-' + id);
+  if (p) p.remove();
+  EFFECTS[id].params.forEach(pr => { values[id][pr.id] = pr.value; });
+  recomputeParams();
+  layoutDesktopPanels();
+}
+
+function updateParam(id, paramId, val) {
+  values[id][paramId] = val;
+  if (openOrder.includes(id)) activeParams[paramId] = val;
+}
+
+function resetActiveParams() {
+  [...openOrder].forEach(closeEffect);
+}
+
+/* ── a panel, built from the effect's own definition ───────── */
+function makePanel(id) {
+  const fx = EFFECTS[id];
+  const el = document.createElement('article');
+  el.className = 'shell-panel is-expanded is-active';
+  el.dataset.build = id;
+  el.id = 'panel-' + id;
+
+  const head = document.createElement('div');
+  head.className = 'shell-panel__header';
+  head.innerHTML =
+    '<i class="shell-panel__screw"></i>' +
+    '<span class="shell-panel__led on"></span>' +
+    '<span class="shell-panel__path">/fx/' + id + '</span>' +
+    '<button class="shell-panel__act-btn on" type="button">REMOVE</button>' +
+    '<i class="shell-panel__screw shell-panel__screw--r"></i>';
+  head.querySelector('button').addEventListener('click', e => {
+    e.stopPropagation(); closeEffect(id);
+  });
+
+  const body = document.createElement('div');
+  body.className = 'shell-panel__body';
+  body.id = 'body-' + id;
+
+  const foot = document.createElement('div');
+  foot.className = 'shell-panel__footer';
+  foot.innerHTML = '<span class="shell-panel__tag">' + fx.tag + '</span>' +
+                   '<span class="shell-panel__note">' + fx.note + '</span>';
+
+  el.append(head, body, foot);
+  fx.params.forEach(ctl => {
+    let w;
+    if (ctl.kind === 'knob') {
+      w = UI.knob({ label: ctl.label, value: values[id][ctl.id], def: ctl.def,
+                    detent: ctl.detent, lo: 0, hi: 1, scale: 100, dp: 0,
+                    onchange: v => updateParam(id, ctl.id, v) });
+    } else {
+      w = UI.slide({ label: ctl.label, positions: ctl.positions,
+                     value: values[id][ctl.id], def: ctl.def,
+                     onchange: v => updateParam(id, ctl.id, v) });
+    }
+    if (w && w.el) { widgetMap[id + '_' + ctl.id] = w; body.appendChild(w.el); }
+  });
+
+  initDraggable(el, head);
+  head.addEventListener('click', e => {
+    if (e.target.closest('button, a, input, select')) return;
+    if (window.innerWidth <= 900) el.classList.toggle('is-expanded');
+    else bringToFront(el);
+  });
+  return el;
+}
+
+/* ── the catalogue — every effect, in the reference's own order ── */
+function buildCatalogue() {
+  const box = $('#cat-list');
+  if (!box) return;
+  box.innerHTML = '';
+  CATS.forEach(([cat, blurb]) => {
+    const ids = Object.keys(EFFECTS).filter(k => EFFECTS[k].cat === cat);
+    if (!ids.length) return;
+    const h = document.createElement('div');
+    h.className = 'cat-head';
+    h.innerHTML = '<b>' + cat + '</b><em>' + blurb + '</em>';
+    box.appendChild(h);
+    ids.forEach(id => {
+      const r = document.createElement('button');
+      r.type = 'button';
+      r.className = 'cat-row';
+      r.dataset.fx = id;
+      r.innerHTML = '<span class="cat-row__dot"></span><span class="cat-row__name">' +
+                    EFFECTS[id].name + '</span><span class="cat-row__add">ADD</span>';
+      r.addEventListener('click', () => {
+        openOrder.includes(id) ? closeEffect(id) : openEffect(id);
+      });
+      box.appendChild(r);
+    });
+  });
 }
 
 /* ── WebGL2 Engine boot — exactly one canvas in DOM ────────── */
+const desk  = $('#desktop');
 const stage = $('#stage');
 let engine;
 try {
@@ -298,132 +479,6 @@ function cycleQuality() {
 }
 
 /* ── activate a build & reset other effect params to zero ─── */
-function activateBuild(buildId, silent) {
-  if (!BUILDS[buildId]) return;
-  activeBuild = buildId;
-
-  /* Reset all parameters back to NEUTRAL */
-  for (const k in activeParams) {
-    if (k in NEUTRAL) {
-      activeParams[k] = NEUTRAL[k];
-    } else {
-      activeParams[k] = 0;
-    }
-  }
-
-  /* Apply this build's active values */
-  const vals = buildValues[buildId];
-  for (const k in vals) {
-    activeParams[k] = vals[k];
-  }
-
-  /* Custom defaults for complex effects */
-  if (buildId === 'sort') activeParams.sortSpan = 1;
-  if (buildId === 'streak') activeParams.s8Burn = 0.40;
-  if (buildId === 'raster') activeParams.scopeGlow = 0.60;
-
-  /* Update all panel UI active & expanded states */
-  $$('.shell-panel').forEach(panel => {
-    const isThis = panel.dataset.build === buildId;
-    panel.classList.toggle('is-active', isThis);
-    panel.classList.toggle('is-expanded', isThis);
-    const btn = panel.querySelector('.shell-panel__act-btn');
-    if (btn && BUILDS[panel.dataset.build]) {
-      btn.textContent = isThis ? 'ACTIVE' : 'SELECT';
-      btn.classList.toggle('on', isThis);
-    }
-  });
-
-  /* Update top bar active path and system status readout */
-  const activeLabel = $('#shell-active-label');
-  if (activeLabel) activeLabel.textContent = BUILDS[buildId].path;
-
-  const sysBuild = $('#sys-build');
-  if (sysBuild) sysBuild.textContent = BUILDS[buildId].path;
-
-  /* Re-layout desktop panels */
-  layoutDesktopPanels();
-}
-
-function togglePanel(panel) {
-  const bId = panel.dataset.build;
-  if (bId && BUILDS[bId]) {
-    activateBuild(bId);
-    return;
-  }
-  /* Auxiliary panels (status, about, bender) */
-  const isExp = panel.classList.contains('is-expanded');
-  panel.classList.toggle('is-expanded', !isExp);
-  panel.classList.toggle('is-active', !isExp);
-  const btn = panel.querySelector('.shell-panel__act-btn');
-  if (btn) {
-    btn.classList.toggle('on', !isExp);
-  }
-  layoutDesktopPanels();
-}
-
-function updateParam(buildId, paramId, val) {
-  if (!buildValues[buildId]) buildValues[buildId] = {};
-  buildValues[buildId][paramId] = val;
-
-  if (activeBuild !== buildId) {
-    activateBuild(buildId);
-  } else {
-    activeParams[paramId] = val;
-  }
-}
-
-function resetActiveParams() {
-  if (!BUILDS[activeBuild]) return;
-  buildValues[activeBuild] = Object.assign({}, BUILDS[activeBuild].defaults);
-
-  /* Reset widget controls for active build */
-  BUILDS[activeBuild].controls.forEach(ctl => {
-    const w = widgetMap[activeBuild + '_' + ctl.id];
-    if (w) w.set(buildValues[activeBuild][ctl.id], false);
-  });
-
-  activateBuild(activeBuild);
-}
-
-/* ── build widgets into panel DOMs ────────────────────────── */
-function buildPanelWidgets() {
-  for (const b in BUILDS) {
-    const container = $('#body-' + b);
-    if (!container) continue;
-    container.innerHTML = '';
-
-    BUILDS[b].controls.forEach(ctl => {
-      let w;
-      const common = {
-        label: ctl.label,
-        value: buildValues[b][ctl.id],
-        def: ctl.def,
-        detent: ctl.detent,
-        scale: 100,
-        dp: 0,
-        onchange: val => updateParam(b, ctl.id, val)
-      };
-
-      if (ctl.kind === 'knob') {
-        w = UI.knob(Object.assign({}, common, { lo: 0, hi: 1 }));
-      } else if (ctl.kind === 'slide') {
-        w = UI.slide({
-          label: ctl.label,
-          positions: ctl.positions,
-          value: buildValues[b][ctl.id],
-          def: ctl.def,
-          onchange: idx => updateParam(b, ctl.id, idx)
-        });
-      }
-
-      if (w && w.el) {
-        widgetMap[b + '_' + ctl.id] = w;
-        container.appendChild(w.el);
-      }
-    });
-  }
-}
 
 /* ── desktop dragging & bring-to-front ────────────────────── */
 let topZ = 20;
@@ -487,8 +542,9 @@ function initDraggable(panel, handle) {
     panel.classList.remove('is-dragging');
     try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
 
-    if (!didMove) {
-      togglePanel(panel);
+    if (!didMove && panel.dataset.aux) {
+      panel.classList.toggle('is-expanded');
+      layoutDesktopPanels();
     }
   }
 
@@ -503,32 +559,31 @@ function initDraggable(panel, handle) {
 function layoutDesktopPanels() {
   if (window.innerWidth <= 900) {
     $$('.shell-panel').forEach(p => {
-      p.style.left = '';
-      p.style.top = '';
-      p.style.right = '';
-      p.style.bottom = '';
-      p.style.zIndex = '';
+      p.style.left = ''; p.style.top = '';
+      p.style.right = ''; p.style.bottom = ''; p.style.zIndex = '';
     });
     return;
   }
 
-  const panels = $$('.shell-desktop .shell-panel');
-  let curY = 16;
-  const padX = 24;
-  const xOffsets = [0, 14, -6, 16, 4, 8, -4, 18, 2, 10];
+  /* Columns, not one running stack — with a catalogue open and several
+     effects stacked, a single column walks straight off the bottom. Panels
+     the user has dragged keep their own position and are skipped. */
+  const panels = [...$$('.shell-desktop .shell-panel')].filter(p => !p._dragged);
+  const top = 14, gap = 6, colGap = 10;
+  const limit = window.innerHeight - 20;
+  let x = 18, y = top, colW = 0, z = 10;
 
-  panels.forEach((p, idx) => {
-    if (!p._dragged) {
-      const x = padX + (xOffsets[idx % xOffsets.length] || 0);
-      p.style.left = Math.max(12, x) + 'px';
-      p.style.top = curY + 'px';
-      p.style.right = 'auto';
-      p.style.bottom = 'auto';
-      p.style.zIndex = p.classList.contains('is-expanded') ? 30 : (10 + idx);
-    }
-
-    const h = p.offsetHeight || (p.classList.contains('is-expanded') ? 180 : 32);
-    curY += h + 6;
+  panels.forEach(p => {
+    const h = p.offsetHeight || 30;
+    const w = p.offsetWidth || 240;
+    if (y + h > limit && y > top) { x += colW + colGap; y = top; colW = 0; }
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.right = 'auto';
+    p.style.bottom = 'auto';
+    p.style.zIndex = ++z;
+    y += h + gap;
+    if (w > colW) colW = w;
   });
 }
 
@@ -599,30 +654,22 @@ function init() {
     if (rule) rule.innerHTML = Sigil.rule(SEED, 1200);
   }
 
-  /* Build widgets inside panels */
-  buildPanelWidgets();
+  /* The catalogue lists every effect; panels are created when one is added */
+  buildCatalogue();
 
-  /* Wire select & action buttons and headers */
-  $$('.shell-panel').forEach(panel => {
+  /* Static panels — catalogue, bender launcher, status, about */
+  $$('.shell-panel[data-aux]').forEach(panel => {
     const btn = panel.querySelector('.shell-panel__act-btn');
     if (btn) {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        togglePanel(panel);
+        panel.classList.toggle('is-expanded');
+        btn.classList.toggle('on', panel.classList.contains('is-expanded'));
+        layoutDesktopPanels();
       });
     }
-
     const header = panel.querySelector('.shell-panel__header');
-    if (header) {
-      initDraggable(panel, header);
-      /* For mobile touch: tapping header toggles panel */
-      header.addEventListener('click', e => {
-        if (window.innerWidth <= 900) {
-          if (e.target.closest('button, a, input, select')) return;
-          togglePanel(panel);
-        }
-      });
-    }
+    if (header) initDraggable(panel, header);
   });
 
   /* Initial layout */
@@ -644,8 +691,8 @@ function init() {
   const sysReset = $('#sys-reset-btn');
   if (sysReset) sysReset.addEventListener('click', resetActiveParams);
 
-  /* Activate initial build */
-  activateBuild('duo');
+  /* Boot with a short chain so the instrument is doing something on arrival */
+  ['duotone', 'slices'].forEach(openEffect);
 
   /* Open camera */
   openCamera('user');
