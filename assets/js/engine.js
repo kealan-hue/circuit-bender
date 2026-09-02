@@ -106,6 +106,7 @@ uniform float uWob, uWobSize, uWobSpeed;
 uniform float uShake, uShakeSpeed;
 uniform float uMirror, uMirrorPos;
 uniform int   uMirrorSide;
+uniform float uPolar, uPolarRadius, uPolarSeg;
 
 vec3 ringAt(vec2 uv, float back){
   float s = mod(uHead - back + uRingN*4.0, uRingN);
@@ -121,6 +122,18 @@ vec3 ringLerp(vec2 uv, float back){
 void main(){
   vec2 uv = vUv;
   float t = uTime, B = uBend;
+
+  /* ── POLAR — polar coordinate wrap around center point ── */
+  if(uPolar > 0.002){
+    vec2 p = uv - 0.5;
+    float ang = atan(p.y, p.x);
+    float r = length(p);
+    float rHole = uPolarRadius * 0.45;
+    float vCoord = clamp((r - rHole) / max(0.001, 0.707 - rHole), 0.0, 1.0);
+    float segs = max(1.0, floor(mix(1.0, 8.0, uPolarSeg)));
+    float uCoord = fract((ang / TAU + 0.5) * segs);
+    uv = mix(uv, vec2(uCoord, vCoord), uPolar);
+  }
 
   /* ── KALEIDO — fold before anything samples ── */
   if(uKal > 0.002){
@@ -291,7 +304,8 @@ void main(){
     float jStep = floor(t * mix(12.0, 60.0, uJitSpeed));
     float jRand = (hash(vec2(jStep, 31.7)) - 0.5) * 2.0;
     float jHigh = (hash(vec2(jStep * 1.9 + 7.3, 91.1)) - 0.5) * 2.0;
-    uv += jDir * (jRand * 0.04 + jHigh * 0.015) * uJit * (1.0 + B * 1.5);
+    float jNoise = jRand * 0.72 + jHigh * 0.28;
+    uv += jDir * jNoise * (uJit * 0.04 + uJit * uJit * 0.14) * (1.0 + B * 1.5);
   }
 
   /* ── SHAKE — whole-frame impact displacement stepped on frame ── */
@@ -413,14 +427,13 @@ void main(){
   /* ── DECIMATE — quantised frame hold and repeat across spatial blocks ── */
   float decBack = 0.0;
   if(uDec > 0.002){
-    float dRate = mix(1.5, 20.0, uDecSpeed);
-    float dInterval = 1.0 / dRate;
+    float f = (uFrame > 0.5) ? uFrame : floor(t * 30.0 + 0.001);
+    float holdFrames = max(2.0, floor(mix(18.0, 2.0, uDecSpeed)));
     float dBlockSize = floor(mix(8.0, 80.0, uDecScale));
     vec2 dBlockId = floor(wuv * uRes / max(1.0, dBlockSize));
-    float dPhase = (uDecScale > 0.002) ? hash(dBlockId * 19.17 + 3.3) * dInterval : 0.0;
-    float dDt = mod(t + dPhase, dInterval);
-    decBack = clamp(dDt * 30.0, 0.0, uRingN - 3.0);
-    back = mix(back, back + decBack, uDec);
+    float dPhase = (uDecScale > 0.002) ? floor(hash(dBlockId * 19.17 + 3.3) * holdFrames) : 0.0;
+    decBack = clamp(mod(f + dPhase, holdFrames), 0.0, uRingN - 3.0);
+    back += decBack;
   }
 
   /* ── CHANNEL TIME — R, G, B pulled from different moments.
@@ -846,6 +859,11 @@ uniform float uGrain, uGrainSize;
 uniform float uSharpen, uBlur, uBleach;
 uniform float uCcLift, uCcGamma, uCcGain, uCcTemp;
 uniform int   uInv;
+uniform float uPoster, uPosterLevels;
+uniform float uEdge, uEdgeThick, uEdgePass;
+uniform float uPix, uPixX, uPixY;
+uniform float uDot, uDotCount, uDotSize, uDotBlur;
+uniform float uLino, uLinoScale, uLinoAngle;
 
 /* Bayer 8x8 by bit interleave — no lookup table, no texture */
 float bayer(ivec2 p){
@@ -965,6 +983,13 @@ void main(){
     col = floor(col*lv + 0.5 + bd*uDither*1.6) / lv;
   } else if(uDither > 0.002){
     col = floor(col*24.0 + 0.5 + bd*uDither*2.2) / 24.0;
+  }
+
+  /* ── POSTERIZE — flat tonal bands screen-print look ── */
+  if(uPoster > 0.002){
+    float numLevels = max(2.0, floor(mix(2.0, 16.0, uPosterLevels) + 0.5));
+    vec3 postCol = floor(col * (numLevels - 1.0) + 0.5) / (numLevels - 1.0);
+    col = mix(col, postCol, uPoster);
   }
 
   /* ── HALFTONE — CMY screen angles in polar ── */
@@ -1100,6 +1125,63 @@ void main(){
     col = mix(rawSource, col, blockOn);
   }
 
+  /* ── PIXELATE — rectangular block area average ── */
+  if(uPix > 0.002){
+    float nx = max(4.0, floor(mix(6.0, 120.0, uPixX)));
+    float ny = max(4.0, floor(mix(6.0, 120.0, uPixY)));
+    vec2 blockSize = vec2(1.0 / nx, 1.0 / ny);
+    vec2 bMin = floor(cl / blockSize) * blockSize;
+    vec3 blockSum = vec3(0.0);
+    for(int j = 0; j < 3; j++){
+      for(int i = 0; i < 3; i++){
+        vec2 tap = bMin + blockSize * vec2((float(i) + 0.5) * 0.33333, (float(j) + 0.5) * 0.33333);
+        blockSum += texture(uTex, clamp(tap, 0.0, 1.0)).rgb;
+      }
+    }
+    col = mix(col, blockSum / 9.0, uPix);
+  }
+
+  /* ── DOT MATRIX — regular grid of round dots sized by brightness ── */
+  if(uDot > 0.002){
+    float count = max(8.0, floor(mix(12.0, 100.0, uDotCount)));
+    float aspect = max(0.01, uRes.x / uRes.y);
+    vec2 gridNum = vec2(count, floor(count / aspect));
+    vec2 cellUv = cl * gridNum;
+    vec2 cellCenter = (floor(cellUv) + 0.5) / gridNum;
+    vec3 dotSample = texture(uTex, clamp(cellCenter, 0.0, 1.0)).rgb;
+    float b = luma(dotSample);
+    vec2 pInCell = fract(cellUv) - 0.5;
+    float dist = length(pInCell);
+    float maxR = mix(0.20, 0.70, uDotSize);
+    float dotR = sqrt(b) * maxR;
+    float blurW = max(0.01, uDotBlur * 0.30);
+    float dotMask = 1.0 - smoothstep(dotR - blurW, dotR + blurW, dist);
+    vec3 dotCol = dotSample * dotMask;
+    col = mix(col, dotCol, uDot);
+  }
+
+  /* ── LINOCUT — directional carved marks with tone-varying stroke width ── */
+  if(uLino > 0.002){
+    float cutAng = uLinoAngle * PI;
+    vec2 cutDir = vec2(cos(cutAng), sin(cutAng));
+    vec2 perpDir = vec2(-sin(cutAng), cos(cutAng));
+    vec2 pLino = cl * uRes;
+    float scale = mix(6.0, 32.0, uLinoScale);
+    float uAcross = dot(pLino, perpDir) / scale;
+    float uAlong = dot(pLino, cutDir) / scale;
+    float rowId = floor(uAcross);
+    float inRow = fract(uAcross) - 0.5;
+    float lum = luma(col);
+    float strokeWidth = clamp(lum * 1.15, 0.04, 0.96);
+    float cutJitter = (hash(vec2(rowId, floor(uAlong * 0.3))) - 0.5) * 0.14;
+    float strokeShape = abs(inRow + cutJitter * 0.25);
+    float chisel = smoothstep(strokeWidth * 0.5 + 0.04, strokeWidth * 0.5 - 0.04, strokeShape);
+    vec3 inkCol = vec3(0.03, 0.03, 0.04);
+    vec3 paperCol = vec3(0.96, 0.93, 0.86);
+    vec3 linoCol = mix(inkCol, mix(paperCol, col * 1.15, 0.3), chisel);
+    col = mix(col, linoCol, uLino);
+  }
+
   if(uInv == 1) col = 1.0 - col;
   else if(uInv == 2) col = abs(1.0 - 2.0*col);
 
@@ -1127,6 +1209,25 @@ void main(){
     vec3 shW = texture(uTex, clamp(cl - vec2(pxS.x, 0.0), 0.0, 1.0)).rgb;
     vec3 shLap = col * 4.0 - (shN + shS + shE + shW);
     col = clamp(col + shLap * uSharpen * 1.3, 0.0, 1.0);
+  }
+
+  /* ── EDGES — Sobel line drawing with passthru and thickness ── */
+  if(uEdge > 0.002){
+    vec2 eStep = (1.0 + uEdgeThick * 4.0) / uRes;
+    float l00 = luma(texture(uTex, clamp(cl + vec2(-eStep.x, -eStep.y), 0.0, 1.0)).rgb);
+    float l10 = luma(texture(uTex, clamp(cl + vec2( 0.0,     -eStep.y), 0.0, 1.0)).rgb);
+    float l20 = luma(texture(uTex, clamp(cl + vec2( eStep.x, -eStep.y), 0.0, 1.0)).rgb);
+    float l01 = luma(texture(uTex, clamp(cl + vec2(-eStep.x,  0.0),     0.0, 1.0)).rgb);
+    float l21 = luma(texture(uTex, clamp(cl + vec2( eStep.x,  0.0),     0.0, 1.0)).rgb);
+    float l02 = luma(texture(uTex, clamp(cl + vec2(-eStep.x,  eStep.y), 0.0, 1.0)).rgb);
+    float l12 = luma(texture(uTex, clamp(cl + vec2( 0.0,      eStep.y), 0.0, 1.0)).rgb);
+    float l22 = luma(texture(uTex, clamp(cl + vec2( eStep.x,  eStep.y), 0.0, 1.0)).rgb);
+    float gx = (l20 + 2.0*l21 + l22) - (l00 + 2.0*l01 + l02);
+    float gy = (l02 + 2.0*l12 + l22) - (l00 + 2.0*l10 + l20);
+    float gMag = length(vec2(gx, gy));
+    vec3 edgeLines = vec3(clamp(gMag * 3.2, 0.0, 1.0));
+    vec3 edgeResult = mix(vec3(0.0), col, uEdgePass) + edgeLines;
+    col = mix(col, clamp(edgeResult, 0.0, 1.0), uEdge);
   }
 
   /* ── BLEACH — bleach bypass silver retention ── */
@@ -1553,6 +1654,9 @@ function Engine(canvas){
       gl.uniform1f(m.uMirror, p.mirror);
       gl.uniform1f(m.uMirrorPos, p.mirrorPos);
       gl.uniform1i(m.uMirrorSide, p.mirrorSide|0);
+      gl.uniform1f(m.uPolar, p.polar);
+      gl.uniform1f(m.uPolarRadius, p.polarRadius);
+      gl.uniform1f(m.uPolarSeg, p.polarSeg);
       draw(work);
 
       /* ── SIGNAL ── */
@@ -1656,6 +1760,21 @@ function Engine(canvas){
       gl.uniform1f(q.uOver, p.over);
       gl.uniform1f(q.uOverMode, p.overMode);
       gl.uniform1i(q.uInv, p.inv|0);
+      gl.uniform1f(q.uPoster, p.poster);
+      gl.uniform1f(q.uPosterLevels, p.posterLevels);
+      gl.uniform1f(q.uEdge, p.edge);
+      gl.uniform1f(q.uEdgeThick, p.edgeThick);
+      gl.uniform1f(q.uEdgePass, p.edgePass);
+      gl.uniform1f(q.uPix, p.pix);
+      gl.uniform1f(q.uPixX, p.pixX);
+      gl.uniform1f(q.uPixY, p.pixY);
+      gl.uniform1f(q.uDot, p.dot);
+      gl.uniform1f(q.uDotCount, p.dotCount);
+      gl.uniform1f(q.uDotSize, p.dotSize);
+      gl.uniform1f(q.uDotBlur, p.dotBlur);
+      gl.uniform1f(q.uLino, p.lino);
+      gl.uniform1f(q.uLinoScale, p.linoScale);
+      gl.uniform1f(q.uLinoAngle, p.linoAngle);
       draw(prev);
 
       gl.useProgram(P.copy.p);

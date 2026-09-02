@@ -82,6 +82,10 @@ const EFFECTS = {
                  params:[K('w3d','AMOUNT',0.55),K('w3dPitch','PITCH',0.62,0.5,[0.5]),K('w3dYaw','YAW',0.60,0.5,[0.5]),K('w3dRoll','ROLL',0.5,0.5,[0.5])] },
 
   /* ── TIME ── */
+  decimate:    { cat:'TIME', name:'DECIMATE', tag:'CBX-DEC', note:'shooting on twos · motion arrives in steps',
+                 params:[K('dec','AMOUNT',0.85),K('decSpeed','SPEED',0.20,0.5,[0.5]),K('decScale','SCALE',0.35),K('decTint','COLORIZE',0.25)] },
+  opticalflow: { cat:'TIME', name:'OPTICAL FLOW', tag:'CBX-FLW', note:'dragged along its own motion vectors',
+                 params:[K('flow','AMOUNT',0.75),K('flowDist','DISTORTION',0.60),K('flowSpeed','SPEED',0.50,0.5,[0.5])] },
   datamosh:    { cat:'TIME', name:'DATA MOSH', tag:'CBX-MOSH', note:'p-frame vector carry · recursive buffer',
                  params:[K('mosh','AMOUNT',0.55),K('feed','FLOW',0.35),K('orbit','DRIFT',0.52,0.5,[0.5])] },
   feedback:    { cat:'TIME', name:'FEEDBACK', tag:'CBX-FDBK', note:'the camera pointed at its own monitor',
@@ -115,7 +119,20 @@ const EFFECTS = {
   pixelsort:   { cat:'DISPLACE', name:'PIXEL SORT', tag:'CBX-SORT', note:'odd-even transposition · luma gate',
                  params:[K('sort','AMOUNT',0.45),K('gateLo','GATE ↓',0.20),K('gateHi','GATE ↑',0.75),D('sortKey','KEY',['LUMA','DARK','RGB','VAL'],0)] },
 
+  jitter:      { cat:'DISPLACE', name:'JITTER', tag:'CBX-JIT', note:'never quite settles · an unstable signal',
+                 params:[K('jit','AMOUNT',0.80),K('jitSpeed','SPEED',0.60,0.5,[0.5]),K('jitAngle','ANGLE',0.30)] },
+  melt:        { cat:'DISPLACE', name:'MELT', tag:'CBX-MLT', note:'sliding off the screen in irregular runs',
+                 params:[K('melt','AMOUNT',0.75),K('meltScale','SCALE',0.55,0.5,[0.5]),K('meltSpeed','SPEED',0.50,0.5,[0.5])] },
+  wobble:      { cat:'DISPLACE', name:'WOBBLE', tag:'CBX-WOB', note:'a lens made of water rather than glass',
+                 params:[K('wob','AMOUNT',0.70),K('wobSize','SIZE',0.55,0.5,[0.5]),K('wobSpeed','SPEED',0.50,0.5,[0.5])] },
+  shake:       { cat:'DISPLACE', name:'SHAKE', tag:'CBX-SHK', note:'the camera being knocked',
+                 params:[K('shake','AMOUNT',0.60),K('shakeSpeed','SPEED',0.55,0.5,[0.5])] },
+  softglitch:  { cat:'DISPLACE', name:'SOFT GLITCH', tag:'CBX-SGL', note:'colour pulls apart in soft bands',
+                 params:[K('soft','AMOUNT',0.75),K('softSpeed','SPEED',0.55,0.5,[0.5])] },
+
   /* ── REPEAT ── */
+  mirror:      { cat:'REPEAT', name:'MIRROR', tag:'CBX-MIR', note:'one half reflected onto the other',
+                 params:[K('mirror','AMOUNT',0.90),K('mirrorPos','POSITION',0.5,0.5,[0.5]),D('mirrorSide','SIDE',['L','R','T','B'],0)] },
   tile:        { cat:'REPEAT', name:'TILE', tag:'CBX-TIL', note:'sliding mirrored tiling',
                  params:[K('tile','AMOUNT',0.55),K('tileSpeed','SPEED',0.45,0.5,[0.5]),K('tileAngle','ANGLE',0.0)] },
   kaleido:     { cat:'REPEAT', name:'KALEIDO', tag:'CBX-KAL', note:'mirrored into wedges',
@@ -124,6 +141,10 @@ const EFFECTS = {
                  params:[K('split','SHIFT',0.55),K('splitCount','COUNT',0.40),K('splitAngle','ANGLE',0.0)] },
 
   /* ── TONE ── */
+  posterize:   { cat:'TONE', name:'POSTERIZE', tag:'CBX-PST', note:'gradients become flat bands · screen print',
+                 params:[K('poster','AMOUNT',0.85),K('posterLevels','LEVELS',0.30)] },
+  edges:       { cat:'TONE', name:'EDGES', tag:'CBX-EDG', note:'only where brightness changes sharply',
+                 params:[K('edge','AMOUNT',0.80),K('edgeThick','THICKNESS',0.45),K('edgePass','PASSTHRU',0.25)] },
   solarize:    { cat:'TONE', name:'SOLARIZE', tag:'CBX-SOL', note:'the darkroom accident',
                  params:[D('inv','POLARITY',['NORM','NEG','SOLAR'],2)] },
   bleach:      { cat:'TONE', name:'BLEACH', tag:'CBX-BLC', note:'contrast crushed toward white',
@@ -132,6 +153,14 @@ const EFFECTS = {
                  params:[K('sharpen','AMOUNT',0.60)] },
 
   /* ── DOTS ── */
+  pixelate:    { cat:'DOTS', name:'PIXELATE', tag:'CBX-PIX', note:'averaged into rectangular blocks',
+                 params:[K('pix','AMOUNT',0.90),K('pixX','H PIXELS',0.18),K('pixY','V PIXELS',0.18)] },
+  dotmatrix:   { cat:'DOTS', name:'DOT MATRIX', tag:'CBX-DOT', note:'dots sized by brightness · a stadium display',
+                 params:[K('dot','AMOUNT',0.85),K('dotCount','COUNT',0.40),K('dotSize','SIZE',0.60),K('dotBlur','BLUR',0.30)] },
+  linocut:     { cat:'DOTS', name:'LINOCUT', tag:'CBX-LIN', note:'carved marks with a directional cut',
+                 params:[K('lino','AMOUNT',0.85),K('linoScale','SCALE',0.40),K('linoAngle','ANGLE',0.30)] },
+  polar:       { cat:'DOTS', name:'POLAR', tag:'CBX-POL', note:'wrapped around a centre · lines become arcs',
+                 params:[K('polar','AMOUNT',0.85),K('polarRadius','RADIUS',0.30),K('polarSeg','SEGMENTS',0.25)] },
   eightbit:    { cat:'DOTS', name:'8-BIT', tag:'CBX-CGA', note:'period palette, pixelated to match',
                  params:[K('cga','AMOUNT',0.70),D('cgaPal','PALETTE',['MAGENTA','RED/GRN','AMBER'],0)] },
   halftone:    { cat:'DOTS', name:'HALF TONE', tag:'CBX-HTN', note:'tone as dots on an angled screen',

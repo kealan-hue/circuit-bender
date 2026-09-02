@@ -59,6 +59,10 @@ const V = {
   sharpen:0, blur:0, bleach:0,
   ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
+  pix:0, pixX:0.5, pixY:0.5, dot:0, dotCount:0.5, dotSize:0.5, dotBlur:0.1,
+  polar:0, polarRadius:0.2, polarSeg:0,
+  lino:0, linoScale:0.5, linoAngle:0.25,
+  poster:0, posterLevels:0.5, edge:0, edgeThick:0.5, edgePass:0,
   sort:0, gateLo:0.25, gateHi:0.85, sortAxis:0, sortOrder:0, sortKey:0, sortSpan:1,
   streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0,
   post:0, dither:0.14, half:0, scan:0.42, noise:0.04, inv:0
@@ -89,6 +93,10 @@ const NEUTRAL = Object.assign({}, V, {
   sharpen:0, blur:0, bleach:0,
   ccLift:0.5, ccGamma:0.5, ccGain:0.5, ccTemp:0.5,
   cga:0, cgaPal:0, ascii:0, asciiTint:0, key:0, keyHue:0.33, keyTol:0.3, mask:0, maskSize:0.5, maskSpeed:0.5,
+  pix:0, pixX:0.5, pixY:0.5, dot:0, dotCount:0.5, dotSize:0.5, dotBlur:0.1,
+  polar:0, polarRadius:0.2, polarSeg:0,
+  lino:0, linoScale:0.5, linoAngle:0.25,
+  poster:0, posterLevels:0.5, edge:0, edgeThick:0.5, edgePass:0,
   streak:0, streakAngle:0, s8:0, s8Dust:0.5, s8Burn:0.5, over:0, overMode:0
 });
 const DEF = NEUTRAL;
@@ -105,13 +113,16 @@ const STAGE = {
   sensor: ['smear','bitAmt','soft','softSpeed'],
   bend:   ['addr','clock','bitSwap','bus','starve'],
   geom:   ['tile','tileSpeed','tileAngle','split','splitCount','splitAngle','stretch','stretchWave','stretchJag','w3d','w3dPitch','w3dYaw','w3dRoll',
-           'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','mirror','mirrorPos','mirrorSide','tx','ty','tScale','tRot'],
+           'bulge','bulgeRadius','push','pushAngle','wave2','waveFreq','waveAngle','mirror','mirrorPos','mirrorSide','tx','ty','tScale','tRot',
+           'polar','polarRadius','polarSeg'],
   beam:   ['water','waterBleed','scope','scopeLines','scopeGlow'],
   sort:   ['sort'],
-  redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed'],
+  redraw: ['cga','cgaPal','ascii','asciiTint','key','keyHue','keyTol','mask','maskSize','maskSpeed',
+           'pix','pixX','pixY','dot','dotCount','dotSize','dotBlur','lino','linoScale','linoAngle'],
   film:   ['s8','s8Dust','s8Burn','streak','streakAngle','over','overMode'],
   grade:  ['strobe','strobeRate','grain','grainSize','sharpen','blur','bleach','ccLift','ccGamma','ccGain','ccTemp'],
-  out:    ['post','dither','half','scan','noise','sat','con','route','duo']
+  out:    ['post','dither','half','scan','noise','sat','con','route','duo',
+           'poster','posterLevels','edge','edgeThick','edgePass']
 };
 const ON = {}; Object.keys(STAGE).forEach(k => ON[k] = true);
 
@@ -573,7 +584,10 @@ const RACK = [
     K('tx',         'PAN X',   { def:0.5, detent:[0.5] }),
     K('ty',         'PAN Y',   { def:0.5, detent:[0.5] }),
     K('tScale',     'ZOOM',    { def:0.5, detent:[0.5] }),
-    K('tRot',       'ROTATE',  { def:0.5, detent:[0.5] })
+    K('tRot',       'ROTATE',  { def:0.5, detent:[0.5] }),
+    K('polar',       'POLAR',    { def:0 }),
+    K('polarRadius', 'P RADIUS', { def:0.2 }),
+    K('polarSeg',    'P SEGS',   { def:0 })
   ]},
   { id:'beam', name:'BEAM', note:'resynthesis', wide:true, ctl:[
     K('water',      'WATERCOLOR', { def:0 }),
@@ -601,7 +615,17 @@ const RACK = [
     K('keyTol',    'KEY TOL',  { def:0.3 }),
     K('mask',      'MASK',     { def:0 }),
     K('maskSize',  'M SIZE',   { def:0.5 }),
-    K('maskSpeed', 'M SPEED',  { def:0.5 })
+    K('maskSpeed', 'M SPEED',  { def:0.5 }),
+    K('pix',       'PIXELATE', { def:0 }),
+    K('pixX',      'PIX X',    { def:0.5 }),
+    K('pixY',      'PIX Y',    { def:0.5 }),
+    K('dot',       'DOT MATRIX',{ def:0 }),
+    K('dotCount',  'D COUNT',  { def:0.5 }),
+    K('dotSize',   'D SIZE',   { def:0.5 }),
+    K('dotBlur',   'D BLUR',   { def:0.1 }),
+    K('lino',      'LINOCUT',  { def:0 }),
+    K('linoScale', 'L SCALE',  { def:0.5 }),
+    K('linoAngle', 'L ANGLE',  { def:0.25 })
   ]},
   { id:'film', name:'FILM', note:'optics and stock', wide:true, ctl:[
     K('s8',         'SUPER 8',    { def:0 }),
@@ -626,12 +650,17 @@ const RACK = [
     K('ccTemp',    'TEMP',       { def:0.5, detent:[0.5] })
   ]},
   { id:'out', name:'OUTPUT', wide:true, ctl:[
-    K('post','QUANT',  { def:0 }),
-    K('dither','DITHER',{ def:0 }),
-    K('half','HALFTONE',{ def:0 }),
-    K('scan','RASTER', { def:0.18 }),
-    K('noise','HISS',  { def:0.05 }),
-    S('inv','POLARITY',['NORM','NEG','SOLAR'])
+    K('post',        'QUANT',    { def:0 }),
+    K('poster',      'POSTERIZE',{ def:0 }),
+    K('posterLevels','P LEVELS', { def:0.5 }),
+    K('dither',      'DITHER',   { def:0 }),
+    K('edge',        'EDGES',    { def:0 }),
+    K('edgeThick',   'E THICK',  { def:0.5 }),
+    K('edgePass',    'E PASS',   { def:0 }),
+    K('half',        'HALFTONE', { def:0 }),
+    K('scan',        'RASTER',   { def:0.18 }),
+    K('noise',       'HISS',     { def:0.05 }),
+    S('inv',         'POLARITY', ['NORM','NEG','SOLAR'])
   ]}
 ];
 
